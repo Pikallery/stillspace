@@ -6,6 +6,21 @@
 @tailwind utilities;
 
 @layer base {
+  /* Eliminate 300ms tap delay on all interactive elements */
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    touch-action: manipulation;
+  }
+
+  button, a, input, textarea, select, label,
+  [role="button"], [tabindex] {
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+
   :root {
     --background: oklch(0.08 0 0);
     --foreground: oklch(0.98 0 0);
