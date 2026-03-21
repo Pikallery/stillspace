@@ -1,7 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { FloatingNav } from '@/components/ui/floating-nav'
 import { LoadingScreen } from '@/components/ui/loading-screen'
 import {
@@ -28,10 +27,9 @@ const extraItems = [
 
 export default function CounsellorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [userName, setUserName] = useState('Counsellor')
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = useRef(createClient()).current
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -76,17 +74,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
       />
 
       <main className="pt-20 pb-8 min-h-screen">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        {children}
       </main>
     </div>
   )
