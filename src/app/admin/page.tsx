@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
 } from 'recharts'
-import { Users, UserCheck, AlertTriangle, TrendingUp, MessageCircle } from 'lucide-react'
+import { Users, UserCheck, AlertTriangle, TrendingUp, MessageCircle, ClipboardList } from 'lucide-react'
 
 type TopicRow = { topic: string; count: number }
 
@@ -23,13 +23,15 @@ export default function AdminPage() {
   const [counsellorCount, setCounsellorCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<TopicRow[]>([])
+  const [triageConcerns, setTriageConcerns] = useState<TopicRow[]>([])
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: studentData }, { count }, { data: topicData }] = await Promise.all([
+      const [{ data: studentData }, { count }, { data: topicData }, { data: triageData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('role', 'student'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'counsellor'),
         supabase.from('chat_topics').select('topic'),
+        supabase.from('triage_results').select('top_concern').not('top_concern', 'is', null),
       ])
       setStudents((studentData as Profile[]) ?? [])
       setCounsellorCount(count ?? 0)
@@ -43,6 +45,16 @@ export default function AdminPage() {
         .map(([topic, count]) => ({ topic, count }))
         .sort((a, b) => b.count - a.count)
       setTopics(sorted)
+
+      // Aggregate triage top concerns
+      const concernCounts: Record<string, number> = {}
+      for (const row of (triageData ?? [])) {
+        if (row.top_concern) concernCounts[row.top_concern] = (concernCounts[row.top_concern] ?? 0) + 1
+      }
+      const sortedConcerns = Object.entries(concernCounts)
+        .map(([topic, count]) => ({ topic, count }))
+        .sort((a, b) => b.count - a.count)
+      setTriageConcerns(sortedConcerns)
       setLoading(false)
     }
     load()
@@ -179,6 +191,40 @@ export default function AdminPage() {
                   />
                   <Bar dataKey="count" radius={[0, 6, 6, 0]}>
                     {topics.map((_, i) => (
+                      <Cell key={i} fill={TOPIC_COLORS[i % TOPIC_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        {/* Triage Top Concerns */}
+        <Card className="bg-gray-900/50 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <ClipboardList size={18} className="text-purple-400" />
+              Most Frequently Brought Up in Triage
+            </CardTitle>
+            <p className="text-gray-500 text-xs mt-1">Top concern per student triage session (Phase I)</p>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-gray-500 text-sm">Loading…</p>
+            ) : triageConcerns.length === 0 ? (
+              <p className="text-gray-500 text-sm">No triage data yet — appears as students complete the check-in.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={triageConcerns} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+                  <XAxis type="number" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="topic" stroke="#9ca3af" tick={{ fill: '#d1d5db', fontSize: 11 }} width={140} />
+                  <Tooltip
+                    contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#e5e7eb' }}
+                    formatter={(val) => [val, 'Sessions']}
+                  />
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                    {triageConcerns.map((_, i) => (
                       <Cell key={i} fill={TOPIC_COLORS[i % TOPIC_COLORS.length]} />
                     ))}
                   </Bar>
