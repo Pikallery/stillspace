@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Send, Lightbulb, ChevronLeft } from 'lucide-react'
+import { Send, Lightbulb, ChevronLeft, StickyNote } from 'lucide-react'
 import { createClient, type Profile, type DbMessage, type Conversation } from '@/lib/supabase'
 import { useCall, CallOverlay, CallButton } from '@/components/ui/call-overlay'
 import { encryptMessage, decryptMessage } from '@/lib/crypto'
@@ -98,6 +98,7 @@ export default function CounsellorChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [suggestions, setSuggestions] = useState('')
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [patientNote, setPatientNote] = useState('')
 
   // Merge real + mock conversations (real first if any)
   const conversations: ConversationWithStudent[] = [...realConvs, ...MOCK_CONVERSATIONS]
@@ -171,9 +172,23 @@ export default function CounsellorChatPage() {
         setMessages(mockMsgs)
         setLoadingMsgs(false)
       }, 300) // small delay for realism
-      fetchSuggestions(selectedConv.student.name, [])
+      // Load patient note from dashboard
+    try {
+      const saved = localStorage.getItem('counsellor-patient-notes')
+      const allNotes: Record<string, string> = saved ? JSON.parse(saved) : {}
+      setPatientNote(allNotes[selectedConv.student.name] ?? '')
+    } catch { setPatientNote('') }
+
+    fetchSuggestions(selectedConv.student.name, [])
       return
     }
+
+    // Load patient note from dashboard
+    try {
+      const saved = localStorage.getItem('counsellor-patient-notes')
+      const allNotes: Record<string, string> = saved ? JSON.parse(saved) : {}
+      setPatientNote(allNotes[selectedConv.student.name] ?? '')
+    } catch { setPatientNote('') }
 
     const load = async () => {
       const keyRes = await fetch(`/api/conversations/${selectedConv.id}/key`)
@@ -536,6 +551,29 @@ export default function CounsellorChatPage() {
             </div>
           )}
         </div>
+
+        {/* Patient Notes */}
+        {patientNote ? (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <StickyNote size={14} className="text-teal-400" />
+              <h3 className="text-white font-semibold text-sm">Your Notes</h3>
+            </div>
+            <div className="p-3 bg-teal-900/20 border border-teal-700/30 rounded-lg">
+              <p className="text-teal-200 text-xs leading-relaxed whitespace-pre-line">{patientNote}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-800/30 border border-gray-700/30 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <StickyNote size={12} className="text-gray-600" />
+              <p className="text-gray-600 text-xs font-medium">No notes for this student</p>
+            </div>
+            <p className="text-gray-700 text-[10px] leading-relaxed">
+              Add clinical notes in the Dashboard → Patient Notes to see them here.
+            </p>
+          </div>
+        )}
 
         <div>
           <h3 className="text-white font-semibold text-sm mb-3">Student Info</h3>
