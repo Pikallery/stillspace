@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PageTransition } from '@/components/ui/page-transition'
 import { createClient, type Profile } from '@/lib/supabase'
-import { Star, CheckCircle, XCircle, Ban, ShieldCheck } from 'lucide-react'
+import { Star, XCircle, Ban, ShieldCheck } from 'lucide-react'
 
 export default function AdminCounsellorsPage() {
   const supabase = createClient()

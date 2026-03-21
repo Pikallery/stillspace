@@ -175,7 +175,7 @@ export default function StudentMessagesPage() {
           </button>
           <div>
             <h2 className="text-white font-bold">Find a Counsellor</h2>
-            <p className="text-gray-400 text-xs">Choose who you'd like to message</p>
+            <p className="text-gray-400 text-xs">Choose who you&apos;d like to message</p>
           </div>
         </div>
 
