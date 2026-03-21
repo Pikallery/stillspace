@@ -9,14 +9,79 @@ import { Send, Lightbulb, ChevronLeft } from 'lucide-react'
 import { createClient, type Profile, type DbMessage, type Conversation } from '@/lib/supabase'
 import { useCall, CallOverlay, CallButton } from '@/components/ui/call-overlay'
 import { encryptMessage, decryptMessage } from '@/lib/crypto'
+import { mockStudents, mockChatHistories } from '@/lib/mock-data'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ConversationWithStudent extends Conversation {
   student: Profile
+  _isMock?: boolean
 }
 
 interface MessageWithSender extends DbMessage {
   sender: Profile
 }
+
+// ── Build mock conversations from mockStudents ─────────────────────────────────
+
+const MOCK_COUNSELLOR_SENDER = 'mock-counsellor'
+
+function buildMockProfile(s: typeof mockStudents[number]): Profile {
+  return {
+    id: `mock-student-${s.id}`,
+    name: s.name,
+    role: 'student',
+    email: `${s.name.toLowerCase().replace(' ', '.')}@demo.edu`,
+    mobile: null,
+    is_available: true,
+    is_banned: false,
+    bio: null,
+    specializations: null,
+    rating: 0,
+    triage_score: s.triage_score,
+    triage_level: s.triage_level,
+    college: null, course: null, reg_number: null, section: null, branch: null,
+    experience: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+  }
+}
+
+const MOCK_CONVERSATIONS: ConversationWithStudent[] = mockStudents.map(s => ({
+  id: `mock-conv-${s.id}`,
+  student_id: `mock-student-${s.id}`,
+  counsellor_id: MOCK_COUNSELLOR_SENDER,
+  created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+  student: buildMockProfile(s),
+  _isMock: true,
+}))
+
+function buildMockMessages(studentId: string): MessageWithSender[] {
+  const history = mockChatHistories[studentId] ?? []
+  const student = mockStudents.find(s => s.id === studentId)!
+  const studentProfile = buildMockProfile(student)
+  const counsellorProfile: Profile = {
+    id: MOCK_COUNSELLOR_SENDER,
+    name: 'You',
+    role: 'counsellor',
+    email: 'counsellor@demo.edu',
+    mobile: null, is_available: true, is_banned: false,
+    bio: null, specializations: null, rating: 4.9,
+    triage_score: null, triage_level: null,
+    college: null, course: null, reg_number: null, section: null, branch: null,
+    experience: null,
+    created_at: new Date().toISOString(),
+  }
+  return history.map((msg, i) => ({
+    id: `mock-msg-${studentId}-${i}`,
+    conversation_id: `mock-conv-${studentId}`,
+    sender_id: msg.sender === 'c' ? MOCK_COUNSELLOR_SENDER : `mock-student-${studentId}`,
+    content: msg.content,
+    created_at: new Date(Date.now() - msg.minutesAgo * 60 * 1000).toISOString(),
+    sender: msg.sender === 'c' ? counsellorProfile : studentProfile,
+  }))
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CounsellorChatPage() {
   const supabase = createClient()
@@ -24,7 +89,7 @@ export default function CounsellorChatPage() {
   const convKeyRef = useRef<string | null>(null)
 
   const [myId, setMyId] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<ConversationWithStudent[]>([])
+  const [realConvs, setRealConvs] = useState<ConversationWithStudent[]>([])
   const [selectedConv, setSelectedConv] = useState<ConversationWithStudent | null>(null)
   const [messages, setMessages] = useState<MessageWithSender[]>([])
   const [input, setInput] = useState('')
@@ -33,6 +98,11 @@ export default function CounsellorChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [suggestions, setSuggestions] = useState('')
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
+  // Merge real + mock conversations (real first if any)
+  const conversations: ConversationWithStudent[] = [...realConvs, ...MOCK_CONVERSATIONS]
+
+  const isMock = (conv: ConversationWithStudent) => !!conv._isMock
 
   const call = useCall({
     myId: myId ?? '',
@@ -49,7 +119,7 @@ export default function CounsellorChatPage() {
     })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load conversations ──────────────────────────────────────────────────────
+  // ── Load real conversations ─────────────────────────────────────────────────
 
   useEffect(() => {
     if (!myId) return
@@ -61,12 +131,11 @@ export default function CounsellorChatPage() {
         .eq('counsellor_id', myId)
         .order('created_at', { ascending: false })
 
-      setConversations((data as ConversationWithStudent[]) ?? [])
+      setRealConvs((data as ConversationWithStudent[]) ?? [])
       setLoadingConvs(false)
     }
     load()
 
-    // Listen for new conversations initiated by students
     const channel = supabase
       .channel(`counsellor-convs-${myId}`)
       .on(
@@ -78,7 +147,7 @@ export default function CounsellorChatPage() {
             .select('*, student:profiles!conversations_student_id_fkey(*)')
             .eq('id', payload.new.id)
             .single()
-          if (data) setConversations(prev => [data as ConversationWithStudent, ...prev])
+          if (data) setRealConvs(prev => [data as ConversationWithStudent, ...prev])
         }
       )
       .subscribe()
@@ -86,7 +155,7 @@ export default function CounsellorChatPage() {
     return () => { supabase.removeChannel(channel) }
   }, [myId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load messages for selected conversation ─────────────────────────────────
+  // ── Load messages when conversation selected ────────────────────────────────
 
   useEffect(() => {
     if (!selectedConv) return
@@ -94,8 +163,19 @@ export default function CounsellorChatPage() {
     setLoadingMsgs(true)
     convKeyRef.current = null
 
+    if (isMock(selectedConv)) {
+      // Use pre-built mock messages
+      const studentId = selectedConv.student_id.replace('mock-student-', '')
+      const mockMsgs = buildMockMessages(studentId)
+      setTimeout(() => {
+        setMessages(mockMsgs)
+        setLoadingMsgs(false)
+      }, 300) // small delay for realism
+      fetchSuggestions(selectedConv.student.name, [])
+      return
+    }
+
     const load = async () => {
-      // Fetch conversation-specific encryption key
       const keyRes = await fetch(`/api/conversations/${selectedConv.id}/key`)
       if (keyRes.ok) {
         const { key } = await keyRes.json()
@@ -117,7 +197,6 @@ export default function CounsellorChatPage() {
     }
     load()
 
-    // Real-time subscription
     const channel = supabase
       .channel(`counsellor-msgs-${selectedConv.id}`)
       .on(
@@ -177,10 +256,36 @@ export default function CounsellorChatPage() {
   // ── Send message ────────────────────────────────────────────────────────────
 
   const sendMessage = async () => {
-    if (!input.trim() || !selectedConv || !myId || sending) return
+    if (!input.trim() || !selectedConv || sending) return
     setSending(true)
     const content = input.trim()
     setInput('')
+
+    if (isMock(selectedConv)) {
+      // Append to local state only — mock conversations don't hit DB
+      const counsellorProfile: Profile = {
+        id: MOCK_COUNSELLOR_SENDER,
+        name: 'You',
+        role: 'counsellor',
+        email: '', mobile: null, is_available: true, is_banned: false,
+        bio: null, specializations: null, rating: 4.9,
+        triage_score: null, triage_level: null,
+        college: null, course: null, reg_number: null, section: null, branch: null,
+        experience: null, created_at: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, {
+        id: `local-${Date.now()}`,
+        conversation_id: selectedConv.id,
+        sender_id: MOCK_COUNSELLOR_SENDER,
+        content,
+        created_at: new Date().toISOString(),
+        sender: counsellorProfile,
+      }])
+      setSending(false)
+      return
+    }
+
+    if (!myId) { setSending(false); return }
     const stored = convKeyRef.current
       ? await encryptMessage(content, convKeyRef.current)
       : content
@@ -192,7 +297,14 @@ export default function CounsellorChatPage() {
     setSending(false)
   }
 
-  // ── Reusable list ───────────────────────────────────────────────────────────
+  // ── isMe helper ─────────────────────────────────────────────────────────────
+
+  const isMyMessage = (msg: MessageWithSender) => {
+    if (isMock(selectedConv!)) return msg.sender_id === MOCK_COUNSELLOR_SENDER
+    return msg.sender_id === myId
+  }
+
+  // ── Conversation list component ─────────────────────────────────────────────
 
   const ConversationList = ({ compact = false }: { compact?: boolean }) => (
     <div className={compact ? 'flex-1 overflow-y-auto' : 'space-y-2'}>
@@ -200,42 +312,63 @@ export default function CounsellorChatPage() {
         <div className="p-4 space-y-2">
           {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-lg bg-gray-800/40 animate-pulse" />)}
         </div>
-      ) : conversations.length === 0 ? (
-        <div className="p-6 text-center">
-          <p className="text-gray-500 text-sm">No student conversations yet</p>
-          <p className="text-gray-600 text-xs mt-1">Students will appear here when they message you</p>
-        </div>
       ) : (
-        conversations.map(conv => (
-          <button
-            key={conv.id}
-            onClick={() => setSelectedConv(conv)}
-            className={`w-full text-left transition-colors min-h-[64px] ${
-              compact
-                ? `p-4 border-b border-gray-800/50 hover:bg-gray-800/30 ${
-                    selectedConv?.id === conv.id ? 'bg-indigo-900/20 border-l-2 border-l-indigo-500' : ''
-                  }`
-                : 'flex items-center gap-3 p-4 rounded-xl bg-gray-900/50 border border-gray-800 hover:bg-gray-800/50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Avatar className={compact ? 'w-8 h-8' : 'w-11 h-11 shrink-0'}>
-                <AvatarFallback className="bg-indigo-700 text-white text-xs">
-                  {conv.student.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="text-white font-medium text-sm truncate">{conv.student.name}</p>
-                {conv.student.triage_level === 'emergency' && (
-                  <Badge className="bg-amber-900/60 text-amber-300 border-amber-700/50 text-[10px] animate-pulse">
-                    Emergency
-                  </Badge>
-                )}
+        conversations.map(conv => {
+          const isEmergency = conv.student.triage_level === 'emergency'
+          const student = mockStudents.find(s => conv.student.name === s.name)
+          const preview = student?.lastMessage ?? ''
+          const previewTime = student?.lastMessageTime ?? ''
+
+          return (
+            <button
+              key={conv.id}
+              onClick={() => setSelectedConv(conv)}
+              className={`w-full text-left transition-colors ${
+                compact
+                  ? `p-3 border-b border-gray-800/50 hover:bg-gray-800/30 ${
+                      selectedConv?.id === conv.id ? 'bg-indigo-900/20 border-l-2 border-l-indigo-500' : ''
+                    }`
+                  : `flex items-start gap-3 p-4 rounded-xl border hover:bg-gray-800/50 ${
+                      isEmergency ? 'border-amber-700/40 bg-amber-950/10' : 'bg-gray-900/50 border-gray-800'
+                    }`
+              }`}
+            >
+              <div className={`flex items-start gap-3 ${compact ? '' : 'w-full'}`}>
+                <div className="relative shrink-0">
+                  <Avatar className={compact ? 'w-8 h-8' : 'w-11 h-11'}>
+                    <AvatarFallback className={`text-white text-xs ${isEmergency ? 'bg-amber-700' : 'bg-indigo-700'}`}>
+                      {conv.student.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {conv._isMock && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border border-gray-900" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-white font-medium text-sm truncate">{conv.student.name}</p>
+                    {previewTime && <span className="text-gray-600 text-[10px] shrink-0">{previewTime}</span>}
+                  </div>
+                  {preview && (
+                    <p className="text-gray-500 text-xs truncate mt-0.5">{preview}</p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {isEmergency && (
+                      <Badge className="bg-amber-900/60 text-amber-300 border-amber-700/50 text-[9px] px-1.5 py-0 animate-pulse">
+                        Emergency
+                      </Badge>
+                    )}
+                    {conv.student.triage_level && !isEmergency && (
+                      <Badge className="bg-gray-800 text-gray-400 border-gray-700 text-[9px] px-1.5 py-0">
+                        {conv.student.triage_level}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
-              {!compact && <span className="text-gray-600 text-lg shrink-0">›</span>}
-            </div>
-          </button>
-        ))
+            </button>
+          )
+        })
       )}
     </div>
   )
@@ -254,13 +387,16 @@ export default function CounsellorChatPage() {
 
   // ── Chat view ───────────────────────────────────────────────────────────────
 
+  const isEmergency = selectedConv.student.triage_level === 'emergency'
+
   return (
     <div className="flex h-[calc(100dvh-3.5rem-4rem)] md:h-screen overflow-hidden">
 
       {/* Left: student list (desktop) */}
-      <div className="hidden md:flex w-64 shrink-0 border-r border-gray-800 bg-gray-900/30 flex-col overflow-hidden">
+      <div className="hidden md:flex w-72 shrink-0 border-r border-gray-800 bg-gray-900/30 flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-800 shrink-0">
           <h3 className="text-white font-semibold text-sm">Students</h3>
+          <p className="text-gray-500 text-xs mt-0.5">{conversations.length} assigned</p>
         </div>
         <ConversationList compact />
       </div>
@@ -269,7 +405,9 @@ export default function CounsellorChatPage() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Header */}
-        <div className="shrink-0 p-3 border-b border-gray-800 bg-gray-900/30 flex items-center gap-3">
+        <div className={`shrink-0 p-3 border-b border-gray-800 flex items-center gap-3 ${
+          isEmergency ? 'bg-amber-950/20' : 'bg-gray-900/30'
+        }`}>
           <button
             onClick={() => setSelectedConv(null)}
             className="md:hidden text-gray-400 hover:text-white p-1 -ml-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -277,17 +415,18 @@ export default function CounsellorChatPage() {
             <ChevronLeft size={22} />
           </button>
           <Avatar className="w-9 h-9 shrink-0">
-            <AvatarFallback className="bg-indigo-700 text-white">
+            <AvatarFallback className={`text-white ${isEmergency ? 'bg-amber-700' : 'bg-indigo-700'}`}>
               {selectedConv.student.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm truncate">{selectedConv.student.name}</p>
-            {selectedConv.student.triage_level && (
-              <p className="text-gray-400 text-xs capitalize">Level: {selectedConv.student.triage_level}</p>
-            )}
+            <p className="text-gray-400 text-xs capitalize">
+              {selectedConv.student.triage_level ? `Level: ${selectedConv.student.triage_level}` : 'Student'}
+              {selectedConv._isMock && ' · Demo'}
+            </p>
           </div>
-          {selectedConv.student.triage_level === 'emergency' && (
+          {isEmergency && (
             <Badge className="bg-amber-900/60 text-amber-300 border-amber-700/50 text-xs animate-pulse shrink-0">
               Emergency
             </Badge>
@@ -316,7 +455,7 @@ export default function CounsellorChatPage() {
               )}
               <AnimatePresence initial={false}>
                 {messages.map(msg => {
-                  const isMe = msg.sender_id === myId
+                  const isMe = isMyMessage(msg)
                   return (
                     <motion.div key={msg.id}
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -368,6 +507,9 @@ export default function CounsellorChatPage() {
               <Send size={18} />
             </Button>
           </div>
+          {selectedConv._isMock && (
+            <p className="text-gray-700 text-[10px] text-center mt-1.5">Demo conversation — messages are not saved</p>
+          )}
         </div>
       </div>
 
@@ -413,6 +555,12 @@ export default function CounsellorChatPage() {
                 </p>
               </div>
             )}
+            {selectedConv.student.triage_score != null && (
+              <div>
+                <p className="text-gray-500 text-xs">Triage score</p>
+                <p className="text-gray-200 text-sm">{selectedConv.student.triage_score}/10</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -425,6 +573,7 @@ export default function CounsellorChatPage() {
           Refresh Suggestions
         </Button>
       </div>
+
       <CallOverlay {...call} />
     </div>
   )
