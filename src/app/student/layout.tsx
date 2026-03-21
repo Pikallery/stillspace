@@ -33,6 +33,8 @@ const extraItems = [
   { href: '/student/mission',   label: 'Mission',   icon: Heart },
 ]
 
+export const dynamic = 'force-dynamic'
+
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [userName, setUserName] = useState('Student')

@@ -25,6 +25,8 @@ const extraItems = [
   { href: '/counsellor/mission',  label: 'Our Mission', icon: HeartHandshake },
 ]
 
+export const dynamic = 'force-dynamic'
+
 export default function CounsellorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [userName, setUserName] = useState('Counsellor')
