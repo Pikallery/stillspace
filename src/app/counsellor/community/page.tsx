@@ -1,12 +1,13 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useEffect, useRef } from 'react'
 import { PageTransition } from '@/components/ui/page-transition'
 import { CommunityFeed } from '@/components/ui/community-feed'
 import { createClient } from '@/lib/supabase'
 
-export default function CommunityPage() {
+export default function CounsellorCommunityPage() {
   const supabase = useRef(createClient()).current
-  const [userName, setUserName] = useState('Student')
+  const [userName, setUserName] = useState('Counsellor')
 
   useEffect(() => {
     ;(async () => {
@@ -22,13 +23,13 @@ export default function CommunityPage() {
       <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Community</h1>
-          <p className="text-gray-400 text-sm mt-1">Share, support, and connect with peers and counsellors</p>
+          <p className="text-gray-400 text-sm mt-1">Share insights, quotes and support with students</p>
         </div>
         <CommunityFeed
           userName={userName}
-          userRole="student"
-          accentColor="purple"
-          canPostAnonymous={true}
+          userRole="counsellor"
+          accentColor="indigo"
+          canPostAnonymous={false}
         />
       </div>
     </PageTransition>

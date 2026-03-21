@@ -10,6 +10,7 @@ import {
   DollarSign,
   Calendar,
   HeartHandshake,
+  Users,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
@@ -21,8 +22,9 @@ const primaryItems = [
 ]
 
 const extraItems = [
-  { href: '/counsellor/calendar', label: 'Calendar',    icon: Calendar },
-  { href: '/counsellor/mission',  label: 'Our Mission', icon: HeartHandshake },
+  { href: '/counsellor/community', label: 'Community',   icon: Users },
+  { href: '/counsellor/calendar',  label: 'Calendar',    icon: Calendar },
+  { href: '/counsellor/mission',   label: 'Our Mission', icon: HeartHandshake },
 ]
 
 export const dynamic = 'force-dynamic'

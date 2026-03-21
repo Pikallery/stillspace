@@ -174,6 +174,155 @@ export const mockChatHistories: Record<string, { sender: 'c' | 's'; content: str
   ],
 }
 
+// ── Shared community feed (students + counsellors see the same posts) ─────────
+
+export interface CommunityPost {
+  id: string
+  author: string
+  role: 'student' | 'counsellor'
+  content: string
+  isAnonymous: boolean
+  likes: number
+  liked: boolean
+  comments: { id: string; author: string; role: 'student' | 'counsellor'; content: string }[]
+  showComments: boolean
+  timestamp: string
+}
+
+export const initialCommunityPosts: CommunityPost[] = [
+  {
+    id: 'c1',
+    author: 'Dr. Sarah Chen',
+    role: 'counsellor',
+    content: '🌟 Fact of the Day: Studies show that just 10 minutes of mindful breathing can reduce cortisol (the stress hormone) by up to 23%. Try 4-7-8 breathing: inhale 4 counts, hold 7, exhale 8. Small habits, big shifts. 💙',
+    isAnonymous: false,
+    likes: 47,
+    liked: false,
+    comments: [
+      { id: 'cc1', author: 'Taylor K.', role: 'student', content: "I tried this last night before my exam and it actually calmed me down so much!" },
+      { id: 'cc2', author: 'Mia Chen', role: 'student', content: "Saving this. Thank you Dr. Chen 🙏" },
+    ],
+    showComments: false,
+    timestamp: '3 hours ago',
+  },
+  {
+    id: 'c2',
+    author: 'Jordan L.',
+    role: 'student',
+    content: "Finals week is really getting to me. Anyone else feel like they're barely keeping it together? 😔 I keep staring at my notes and nothing sticks.",
+    isAnonymous: false,
+    likes: 12,
+    liked: false,
+    comments: [
+      { id: 'cc3', author: 'Sai', role: 'student', content: "You're not alone! Try to take breaks and breathe. You got this! 💪" },
+      { id: 'cc4', author: 'Dr. Marcus Williams', role: 'counsellor', content: "Jordan, this is so normal during exam season. Your brain needs rest to consolidate memory — even 20 minutes of sleep improves recall significantly. You're doing better than you think. 💙" },
+    ],
+    showComments: false,
+    timestamp: '5 hours ago',
+  },
+  {
+    id: 'c3',
+    author: 'Dr. Marcus Williams',
+    role: 'counsellor',
+    content: "💡 Mental Health Myth vs. Fact:\n\n❌ Myth: Asking for help is a sign of weakness.\n✅ Fact: Recognising when you need support and reaching out is one of the most courageous things a person can do.\n\nYour struggles don't define you — but how you respond to them can. You are never alone here. 🌿",
+    isAnonymous: false,
+    likes: 63,
+    liked: false,
+    comments: [
+      { id: 'cc5', author: 'Sam R.', role: 'student', content: "I needed to read this today. Thank you so much." },
+    ],
+    showComments: false,
+    timestamp: '8 hours ago',
+  },
+  {
+    id: 'c4',
+    author: 'Anonymous',
+    role: 'student',
+    content: "I've been using the breathing exercises from the app and they actually help! 5 cycles before any stressful situation. Started doing it before lectures too and I feel so much calmer.",
+    isAnonymous: true,
+    likes: 24,
+    liked: false,
+    comments: [],
+    showComments: false,
+    timestamp: '10 hours ago',
+  },
+  {
+    id: 'c5',
+    author: 'Sam R.',
+    role: 'student',
+    content: "Had my first session with a counsellor today. It was scary but I'm really glad I went. Please don't be afraid to ask for help 🌸 They really listen and don't judge you at all.",
+    isAnonymous: false,
+    likes: 31,
+    liked: false,
+    comments: [
+      { id: 'cc6', author: 'Taylor K.', role: 'student', content: "This is so brave of you to share. Thank you!" },
+      { id: 'cc7', author: 'Dr. Sarah Chen', role: 'counsellor', content: "So proud of you for taking that step, Sam. That first session is the hardest — and you did it. Keep going. 💙" },
+    ],
+    showComments: false,
+    timestamp: '1 day ago',
+  },
+  {
+    id: 'c6',
+    author: 'Dr. Priya Patel',
+    role: 'counsellor',
+    content: '🌈 Quote of the Day:\n\n"You don\'t have to be positive all the time. It\'s perfectly okay to feel sad, angry, annoyed, frustrated, scared and anxious. Having feelings doesn\'t make you a negative person. It makes you human."\n\n— Lori Deschene\n\nBe kind to yourself today. 💛',
+    isAnonymous: false,
+    likes: 89,
+    liked: false,
+    comments: [
+      { id: 'cc8', author: 'Priya S.', role: 'student', content: "This quote hits different. Screenshotting this 📸" },
+      { id: 'cc9', author: 'Alex M.', role: 'student', content: "Exactly what I needed. Thank you 🙏" },
+      { id: 'cc10', author: 'Mia Chen', role: 'student', content: "I always feel guilty for not being positive. This really helped." },
+    ],
+    showComments: false,
+    timestamp: '1 day ago',
+  },
+  {
+    id: 'c7',
+    author: 'Ethan P.',
+    role: 'student',
+    content: "Reminder to drink some water and eat something today. We get so caught up in studying that we forget basic stuff. You can't pour from an empty cup 💪",
+    isAnonymous: false,
+    likes: 55,
+    liked: false,
+    comments: [
+      { id: 'cc11', author: 'Jordan L.', role: 'student', content: "Just got up and made some tea because of this. Thank you lol" },
+    ],
+    showComments: false,
+    timestamp: '2 days ago',
+  },
+  {
+    id: 'c8',
+    author: 'Dr. James O\'Brien',
+    role: 'counsellor',
+    content: '🧠 Did You Know?\n\nYour brain physically cannot distinguish between a real smile and a forced one — both trigger the release of serotonin and dopamine.\n\nSo even if things are hard right now, try a small smile. Not to fake happiness, but to give your brain a gentle nudge toward it. You deserve little moments of peace. ✨',
+    isAnonymous: false,
+    likes: 72,
+    liked: false,
+    comments: [
+      { id: 'cc12', author: 'Taylor K.', role: 'student', content: "Just smiled reading this. And now I feel a tiny bit better lol 😊" },
+      { id: 'cc13', author: 'Sai', role: 'student', content: "This is genuinely fascinating. Science is cool!" },
+    ],
+    showComments: false,
+    timestamp: '2 days ago',
+  },
+  {
+    id: 'c9',
+    author: 'Anonymous',
+    role: 'student',
+    content: "Has anyone else felt like they've made real progress and then suddenly had a really bad day and felt back to square one? Is that normal?",
+    isAnonymous: true,
+    likes: 38,
+    liked: false,
+    comments: [
+      { id: 'cc14', author: 'Dr. Marcus Williams', role: 'counsellor', content: "Completely normal — recovery and growth are not linear. Two steps forward, one step back is still one step forward overall. You haven't lost your progress; you're just having a hard day. It will pass. 💙" },
+      { id: 'cc15', author: 'Jordan L.', role: 'student', content: "YES. This happens to me all the time. You're not alone in this at all." },
+    ],
+    showComments: false,
+    timestamp: '3 days ago',
+  },
+]
+
 export const mockRecentActivity = [
   { id: '1', type: 'triage', message: 'Completed mental health check-in', time: '2 hours ago' },
   { id: '2', type: 'chat', message: 'Chatted with StillSpace AI', time: '1 day ago' },
