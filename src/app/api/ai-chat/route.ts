@@ -2,18 +2,6 @@ import { anthropic, STILLSPACE_SYSTEM_PROMPT } from '@/lib/anthropic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const TOPICS = [
-  'Anxiety & Stress',
-  'Depression & Low Mood',
-  'Relationships',
-  'Academic Pressure',
-  'Family Issues',
-  'Sleep Problems',
-  'Self-Harm Thoughts',
-  'Loneliness',
-  'Other',
-]
-
 const TOPIC_KEYWORDS: Record<string, string[]> = {
   'Anxiety & Stress':      ['anxious', 'anxiety', 'stress', 'stressed', 'panic', 'worry', 'worried', 'nervous', 'overwhelm'],
   'Depression & Low Mood': ['depress', 'sad', 'unhappy', 'hopeless', 'empty', 'numb', 'worthless', 'miserable', 'cry'],

@@ -78,7 +78,7 @@ export default function MoodTrendsPage() {
                     formatter={(val) => [`${val}/5.0`, 'Avg Mood']}
                   />
                   <Bar dataKey="avgMood" radius={[8, 8, 0, 0]}>
-                    {weeklyData.map((entry, i) => (
+                    {weeklyData.map((entry: { avgMood: number }, i) => (
                       <Cell
                         key={i}
                         fill={entry.avgMood >= 4 ? '#4ade80' : entry.avgMood >= 3 ? '#818cf8' : '#fb923c'}

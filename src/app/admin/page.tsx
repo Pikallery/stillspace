@@ -119,7 +119,7 @@ export default function AdminPage() {
                     formatter={(val) => [val, 'Students']}
                   />
                   <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                    {scoreDistribution.map((entry, i) => (
+                    {scoreDistribution.map((_, i) => (
                       <Cell key={i} fill={i <= 1 ? '#4ade80' : i === 2 ? '#818cf8' : '#f87171'} />
                     ))}
                   </Bar>
