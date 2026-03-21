@@ -6,7 +6,7 @@ import { LoadingScreen } from '@/components/ui/loading-screen'
 import {
   LayoutDashboard,
   MessageCircle,
-  FileText,
+  Star,
   DollarSign,
   Calendar,
   HeartHandshake,
@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase'
 const primaryItems = [
   { href: '/counsellor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/counsellor/chat',      label: 'Chat',      icon: MessageCircle },
-  { href: '/counsellor/notes',     label: 'Notes',     icon: FileText },
+  { href: '/counsellor/feedback',  label: 'Reviews',   icon: Star },
   { href: '/counsellor/earnings',  label: 'Earnings',  icon: DollarSign },
 ]
 

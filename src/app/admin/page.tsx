@@ -8,9 +8,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
 } from 'recharts'
-import { Users, UserCheck, AlertTriangle, TrendingUp, MessageCircle, ClipboardList } from 'lucide-react'
+import { Users, UserCheck, AlertTriangle, TrendingUp, MessageCircle, ClipboardList, Star } from 'lucide-react'
 
 type TopicRow = { topic: string; count: number }
+
+interface FeedbackRow {
+  id: string
+  rating: number
+  comment: string | null
+  tags: string[] | null
+  created_at: string
+  student: { name: string }
+  counsellor: { name: string }
+}
 
 const TOPIC_COLORS = [
   '#818cf8', '#a78bfa', '#f472b6', '#fb923c',
@@ -24,14 +34,17 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<TopicRow[]>([])
   const [triageConcerns, setTriageConcerns] = useState<TopicRow[]>([])
+  const [recentFeedback, setRecentFeedback] = useState<FeedbackRow[]>([])
+  const [counsellorRatings, setCounsellorRatings] = useState<{ name: string; avg: number; count: number }[]>([])
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: studentData }, { count }, { data: topicData }, { data: triageData }] = await Promise.all([
+      const [{ data: studentData }, { count }, { data: topicData }, { data: triageData }, { data: feedbackData }] = await Promise.all([
         supabase.from('profiles').select('*').eq('role', 'student'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'counsellor'),
         supabase.from('chat_topics').select('topic'),
         supabase.from('triage_results').select('top_concern').not('top_concern', 'is', null),
+        supabase.from('feedback').select('*, student:profiles!feedback_student_id_fkey(name), counsellor:profiles!feedback_counsellor_id_fkey(name)').order('created_at', { ascending: false }).limit(20),
       ])
       setStudents((studentData as Profile[]) ?? [])
       setCounsellorCount(count ?? 0)
@@ -55,6 +68,23 @@ export default function AdminPage() {
         .map(([topic, count]) => ({ topic, count }))
         .sort((a, b) => b.count - a.count)
       setTriageConcerns(sortedConcerns)
+
+      // Feedback
+      const fb = (feedbackData as FeedbackRow[]) ?? []
+      setRecentFeedback(fb)
+
+      // Counsellor rating aggregation
+      const ratingMap: Record<string, { name: string; sum: number; count: number }> = {}
+      for (const f of fb) {
+        const name = f.counsellor?.name ?? 'Unknown'
+        if (!ratingMap[name]) ratingMap[name] = { name, sum: 0, count: 0 }
+        ratingMap[name].sum += f.rating
+        ratingMap[name].count++
+      }
+      const ratings = Object.values(ratingMap)
+        .map(({ name, sum, count }) => ({ name, avg: parseFloat((sum / count).toFixed(1)), count }))
+        .sort((a, b) => b.avg - a.avg)
+      setCounsellorRatings(ratings)
       setLoading(false)
     }
     load()
@@ -230,6 +260,102 @@ export default function AdminPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Counsellor Ratings */}
+        <Card className="bg-gray-900/50 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Star size={18} className="text-amber-400" />
+              Counsellor Ratings Overview
+            </CardTitle>
+            <p className="text-gray-500 text-xs mt-1">Average rating per counsellor based on student feedback</p>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-gray-500 text-sm">Loading…</p>
+            ) : counsellorRatings.length === 0 ? (
+              <p className="text-gray-500 text-sm">No feedback submitted yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {counsellorRatings.map(({ name, avg, count }) => (
+                  <div key={name} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-gray-200 text-sm truncate">{name}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Star size={12} className="text-amber-400 fill-amber-400" />
+                          <span className="text-amber-400 text-sm font-medium">{avg}</span>
+                          <span className="text-gray-500 text-xs">({count})</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full"
+                          style={{ width: `${(avg / 5) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Feedback */}
+        <Card className="bg-gray-900/50 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <MessageCircle size={18} className="text-purple-400" />
+              Recent Student Feedback
+            </CardTitle>
+            <p className="text-gray-500 text-xs mt-1">Last 20 reviews submitted across all counsellors</p>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-gray-500 text-sm">Loading…</p>
+            ) : recentFeedback.length === 0 ? (
+              <p className="text-gray-500 text-sm">No feedback yet — appears as students rate their sessions.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentFeedback.map(f => (
+                  <div key={f.id} className="p-3 rounded-xl bg-gray-800/30 border border-gray-800 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-white text-sm font-medium truncate">{f.student?.name ?? '—'}</span>
+                        <span className="text-gray-600 text-xs shrink-0">→</span>
+                        <span className="text-indigo-300 text-sm truncate">{f.counsellor?.name ?? '—'}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} size={11} className={f.rating >= i ? 'text-amber-400 fill-amber-400' : 'text-gray-700'} />
+                        ))}
+                      </div>
+                    </div>
+                    {f.tags && f.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {f.tags.map(tag => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-900/40 text-indigo-400 border border-indigo-800/40">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {f.comment && (
+                      <p className="text-gray-400 text-xs leading-relaxed italic">&ldquo;{f.comment}&rdquo;</p>
+                    )}
+                    <p className="text-gray-600 text-[10px]">
+                      {new Date(f.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
