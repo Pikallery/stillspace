@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Send, Lightbulb, ChevronLeft } from 'lucide-react'
 import { createClient, type Profile, type DbMessage, type Conversation } from '@/lib/supabase'
+import { useCall, CallOverlay, CallButton } from '@/components/ui/call-overlay'
+import { encryptMessage, decryptMessage } from '@/lib/crypto'
 
 interface ConversationWithStudent extends Conversation {
   student: Profile
@@ -19,6 +21,7 @@ interface MessageWithSender extends DbMessage {
 export default function CounsellorChatPage() {
   const supabase = createClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const convKeyRef = useRef<string | null>(null)
 
   const [myId, setMyId] = useState<string | null>(null)
   const [conversations, setConversations] = useState<ConversationWithStudent[]>([])
@@ -30,6 +33,12 @@ export default function CounsellorChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [suggestions, setSuggestions] = useState('')
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+
+  const call = useCall({
+    myId: myId ?? '',
+    targetId: selectedConv?.student_id ?? '',
+    targetName: selectedConv?.student.name ?? 'Student',
+  })
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
@@ -83,15 +92,27 @@ export default function CounsellorChatPage() {
     if (!selectedConv) return
     setMessages([])
     setLoadingMsgs(true)
+    convKeyRef.current = null
 
     const load = async () => {
+      // Fetch conversation-specific encryption key
+      const keyRes = await fetch(`/api/conversations/${selectedConv.id}/key`)
+      if (keyRes.ok) {
+        const { key } = await keyRes.json()
+        convKeyRef.current = key
+      }
+
       const { data } = await supabase
         .from('messages')
         .select('*, sender:profiles!messages_sender_id_fkey(*)')
         .eq('conversation_id', selectedConv.id)
         .order('created_at', { ascending: true })
 
-      setMessages((data as MessageWithSender[]) ?? [])
+      const raw = (data as MessageWithSender[]) ?? []
+      const decrypted = convKeyRef.current
+        ? await Promise.all(raw.map(async m => ({ ...m, content: await decryptMessage(m.content, convKeyRef.current!) })))
+        : raw
+      setMessages(decrypted)
       setLoadingMsgs(false)
     }
     load()
@@ -108,7 +129,13 @@ export default function CounsellorChatPage() {
             .select('*, sender:profiles!messages_sender_id_fkey(*)')
             .eq('id', payload.new.id)
             .single()
-          if (data) setMessages(prev => [...prev, data as MessageWithSender])
+          if (data) {
+            const msg = data as MessageWithSender
+            const content = convKeyRef.current
+              ? await decryptMessage(msg.content, convKeyRef.current)
+              : msg.content
+            setMessages(prev => [...prev, { ...msg, content }])
+          }
         }
       )
       .subscribe()
@@ -154,10 +181,13 @@ export default function CounsellorChatPage() {
     setSending(true)
     const content = input.trim()
     setInput('')
+    const stored = convKeyRef.current
+      ? await encryptMessage(content, convKeyRef.current)
+      : content
     await supabase.from('messages').insert({
       conversation_id: selectedConv.id,
       sender_id: myId,
-      content,
+      content: stored,
     })
     setSending(false)
   }
@@ -262,6 +292,7 @@ export default function CounsellorChatPage() {
               Emergency
             </Badge>
           )}
+          <CallButton onClick={call.makeCall} disabled={call.status !== 'idle'} ready={call.deviceReady} />
         </div>
 
         {/* Messages */}
@@ -394,6 +425,7 @@ export default function CounsellorChatPage() {
           Refresh Suggestions
         </Button>
       </div>
+      <CallOverlay {...call} />
     </div>
   )
 }

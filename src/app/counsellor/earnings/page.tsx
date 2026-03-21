@@ -33,7 +33,7 @@ export default function EarningsPage() {
                   </div>
                   <div>
                     <p className="text-green-300/70 text-sm">Total Earnings</p>
-                    <p className="text-3xl font-bold text-white">${totalEarnings.toLocaleString()}</p>
+                    <p className="text-3xl font-bold text-white">₹{totalEarnings.toLocaleString('en-IN')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -87,10 +87,10 @@ export default function EarningsPage() {
                 <BarChart data={mockEarnings} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="month" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                  <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={v => `$${v}`} />
+                  <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={v => `₹${v}`} />
                   <Tooltip
                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#e5e7eb' }}
-                    formatter={(value) => [`$${value}`, 'Earnings']}
+                    formatter={(value) => [`₹${value}`, 'Earnings']}
                   />
                   <Bar dataKey="earnings" radius={[6, 6, 0, 0]}>
                     {mockEarnings.map((_, i) => (
@@ -138,8 +138,8 @@ export default function EarningsPage() {
                             <span className="text-gray-300">{row.rating}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-green-400 font-semibold">${row.earnings.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-gray-400">${(row.earnings / row.sessions).toFixed(0)}</td>
+                        <td className="py-3 px-4 text-green-400 font-semibold">₹{row.earnings.toLocaleString('en-IN')}</td>
+                        <td className="py-3 px-4 text-gray-400">₹{(row.earnings / row.sessions).toFixed(0)}</td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -148,8 +148,8 @@ export default function EarningsPage() {
                       <td className="py-3 px-4 text-white font-bold">Total</td>
                       <td className="py-3 px-4 text-white font-bold">{totalSessions}</td>
                       <td className="py-3 px-4 text-amber-400 font-bold">⭐ {avgRating}</td>
-                      <td className="py-3 px-4 text-green-400 font-bold">${totalEarnings.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-gray-400">${(totalEarnings / totalSessions).toFixed(0)}</td>
+                      <td className="py-3 px-4 text-green-400 font-bold">₹{totalEarnings.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-4 text-gray-400">₹{(totalEarnings / totalSessions).toFixed(0)}</td>
                     </tr>
                   </tfoot>
                 </table>

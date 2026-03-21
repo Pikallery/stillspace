@@ -8,6 +8,12 @@ import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase'
 import { Eye, EyeOff, Shield } from 'lucide-react'
 
+const DEMO_ACCOUNTS = [
+  { label: 'Student', email: 'demo.student@stillspace.app', password: 'Demo@1234', color: 'from-purple-600 to-purple-700', hover: 'hover:from-purple-500 hover:to-purple-600' },
+  { label: 'Counsellor', email: 'demo.counsellor@stillspace.app', password: 'Demo@1234', color: 'from-indigo-600 to-indigo-700', hover: 'hover:from-indigo-500 hover:to-indigo-600' },
+  { label: 'Admin', email: 'demo.admin@stillspace.app', password: 'Demo@1234', color: 'from-blue-600 to-blue-700', hover: 'hover:from-blue-500 hover:to-blue-600' },
+]
+
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -28,6 +34,21 @@ export default function LoginPage() {
       else if (data?.role === 'admin') router.replace('/admin')
     })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loginWithCredentials = async (demoEmail: string, demoPassword: string) => {
+    setLoading(true)
+    setError('')
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPassword })
+    if (authError) { setError(authError.message); setLoading(false); return }
+    if (data.session) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.session.user.id).single()
+      if (profile?.role === 'student') router.push('/student/dashboard')
+      else if (profile?.role === 'counsellor') router.push('/counsellor/dashboard')
+      else if (profile?.role === 'admin') router.push('/admin')
+      else router.push('/student/dashboard')
+    }
+    setLoading(false)
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,6 +97,29 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-white">StillSpace</h1>
           <p className="text-gray-400 text-sm mt-1">Sign in to your account</p>
+        </div>
+
+        {/* Demo quick-login */}
+        <div className="mb-4">
+          <div className="grid grid-cols-3 gap-2">
+            {DEMO_ACCOUNTS.map(acc => (
+              <button
+                key={acc.label}
+                onClick={() => loginWithCredentials(acc.email, acc.password)}
+                disabled={loading}
+                className={`bg-gradient-to-br ${acc.color} ${acc.hover} text-white text-xs font-medium py-2 px-1 rounded-xl transition-all disabled:opacity-50`}
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px bg-gray-800" />
+          <span className="text-gray-600 text-xs">or sign in manually</span>
+          <div className="flex-1 h-px bg-gray-800" />
         </div>
 
         {/* Card */}
@@ -139,7 +183,7 @@ export default function LoginPage() {
           <div className="mt-4 p-3 bg-blue-950/30 border border-blue-800/30 rounded-lg flex items-start gap-2">
             <Shield size={14} className="text-blue-400 shrink-0 mt-0.5" />
             <p className="text-blue-300 text-xs leading-relaxed">
-              Admin access is role-based. Register as a student or counsellor, then contact your administrator to upgrade your role.
+              Admin? Use the Admin demo button above or sign in with your admin credentials.
             </p>
           </div>
         </div>
