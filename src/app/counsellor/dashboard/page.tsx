@@ -1,5 +1,5 @@
 'use client'
-import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +27,8 @@ const levelColors = {
 }
 
 export default function CounsellorDashboard() {
+  const router = useRouter()
+
   return (
     <PageTransition>
       <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
@@ -35,24 +37,22 @@ export default function CounsellorDashboard() {
           <p className="text-gray-400 text-sm mt-1">Monitor and support your assigned students</p>
         </div>
 
-        {/* Stats Cards — 3-column compact grid */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
-            { icon: Users,         color: 'indigo', label: 'Students',   value: mockStudents.length, delay: 0.1  },
-            { icon: MessageCircle, color: 'blue',   label: 'Sessions',   value: 3,                   delay: 0.15 },
-            { icon: Star,          color: 'amber',  label: 'Avg Rating', value: '4.9',               delay: 0.2  },
-          ].map(({ icon: Icon, color, label, value, delay }) => (
-            <motion.div key={label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
-              <Card className="bg-gray-900/50 border-gray-800">
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-${color}-900/50 flex items-center justify-center mx-auto mb-1.5`}>
-                    <Icon size={16} className={`text-${color}-400`} />
-                  </div>
-                  <p className="text-white font-bold text-lg sm:text-2xl leading-none">{value}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{label}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            { icon: Users,         color: 'indigo', label: 'Students',   value: mockStudents.length },
+            { icon: MessageCircle, color: 'blue',   label: 'Sessions',   value: 3 },
+            { icon: Star,          color: 'amber',  label: 'Avg Rating', value: '4.9' },
+          ].map(({ icon: Icon, color, label, value }) => (
+            <Card key={label} className="bg-gray-900/50 border-gray-800">
+              <CardContent className="p-3 sm:p-4 text-center">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-${color}-900/50 flex items-center justify-center mx-auto mb-1.5`}>
+                  <Icon size={16} className={`text-${color}-400`} />
+                </div>
+                <p className="text-white font-bold text-lg sm:text-2xl leading-none">{value}</p>
+                <p className="text-gray-400 text-xs mt-0.5">{label}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
 
@@ -62,17 +62,14 @@ export default function CounsellorDashboard() {
             <CardTitle className="text-white text-base sm:text-lg">Assigned Students</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockStudents.map((student, i) => {
+            {mockStudents.map((student) => {
               const TrendIcon = trendIcons[student.trend as keyof typeof trendIcons]
               const isEmergency = student.triage_level === 'emergency'
               const sparkData = student.scores.map((s, idx) => ({ score: s, idx }))
 
               return (
-                <motion.div
+                <div
                   key={student.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
                   className={`p-3 sm:p-4 rounded-xl border transition-all ${
                     isEmergency
                       ? 'border-amber-600/40 bg-amber-950/20 emergency-pulse'
@@ -103,9 +100,15 @@ export default function CounsellorDashboard() {
                         <TrendIcon size={12} className={trendColors[student.trend as keyof typeof trendColors]} />
                       </div>
                     </div>
+                    <span className="text-gray-600 text-[10px] shrink-0">{student.lastMessageTime}</span>
                   </div>
 
-                  {/* Row 2: Sparkline + Actions */}
+                  {/* Last message preview */}
+                  <p className="text-gray-400 text-xs leading-relaxed mb-3 line-clamp-2 pl-12">
+                    {student.lastMessage}
+                  </p>
+
+                  {/* Row 3: Sparkline + Actions */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0 h-9">
                       <ResponsiveContainer width="100%" height="100%">
@@ -127,17 +130,26 @@ export default function CounsellorDashboard() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {isEmergency && (
-                        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs min-h-[40px] px-3">
+                        <Button
+                          size="sm"
+                          onClick={() => router.push('/counsellor/chat')}
+                          className="bg-amber-600 hover:bg-amber-700 text-white text-xs min-h-[40px] px-3"
+                        >
                           <Phone size={14} className="mr-1" />
                           Call
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" className="border-gray-700 text-gray-300 hover:text-white text-xs min-h-[40px] px-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push('/counsellor/chat')}
+                        className="border-gray-700 text-gray-300 hover:text-white hover:bg-indigo-900/30 hover:border-indigo-600/50 text-xs min-h-[40px] px-3"
+                      >
                         Chat
                       </Button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )
             })}
           </CardContent>

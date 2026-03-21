@@ -15,10 +15,14 @@ export const mockEarnings = [
 ]
 
 export const mockStudents = [
-  { id: '1', name: 'Sai', triage_score: 3, triage_level: 'ai', trend: 'up', scores: [5, 4, 3, 3, 3] },
-  { id: '2', name: 'Jordan Lee', triage_score: 6, triage_level: 'counsellor', trend: 'down', scores: [3, 4, 5, 6, 6] },
-  { id: '3', name: 'Sam Rivera', triage_score: 8, triage_level: 'emergency', trend: 'up', scores: [4, 5, 6, 7, 8] },
-  { id: '4', name: 'Taylor Kim', triage_score: 4, triage_level: 'ai', trend: 'neutral', scores: [4, 4, 5, 4, 4] },
+  { id: '1', name: 'Sai',          triage_score: 3,  triage_level: 'ai',          trend: 'up',      scores: [5, 4, 3, 3, 3],    lastMessage: "I've been feeling a bit better after our last chat, thank you!", lastMessageTime: '2m ago' },
+  { id: '2', name: 'Jordan Lee',   triage_score: 6,  triage_level: 'counsellor',  trend: 'down',    scores: [3, 4, 5, 6, 6],    lastMessage: "I just can't seem to concentrate on anything lately. It's really affecting my grades.", lastMessageTime: '15m ago' },
+  { id: '3', name: 'Sam Rivera',   triage_score: 8,  triage_level: 'emergency',   trend: 'up',      scores: [4, 5, 6, 7, 8],    lastMessage: "I don't know how much longer I can keep going like this. I feel so alone.", lastMessageTime: '32m ago' },
+  { id: '4', name: 'Taylor Kim',   triage_score: 4,  triage_level: 'ai',          trend: 'neutral', scores: [4, 4, 5, 4, 4],    lastMessage: "The breathing exercises actually helped last night. Can we try more?", lastMessageTime: '1h ago' },
+  { id: '5', name: 'Alex Morgan',  triage_score: 7,  triage_level: 'counsellor',  trend: 'down',    scores: [2, 3, 5, 6, 7],    lastMessage: "My parents keep fighting and I just hide in my room. I don't know what to do.", lastMessageTime: '2h ago' },
+  { id: '6', name: 'Priya Sharma', triage_score: 5,  triage_level: 'counsellor',  trend: 'neutral', scores: [5, 5, 4, 5, 5],    lastMessage: "Exams are next week and I haven't slept properly in days. I'm so stressed.", lastMessageTime: '3h ago' },
+  { id: '7', name: 'Ethan Park',   triage_score: 9,  triage_level: 'emergency',   trend: 'up',      scores: [3, 5, 6, 8, 9],    lastMessage: "Please, I really need to talk to someone. I've been having dark thoughts again.", lastMessageTime: '4h ago' },
+  { id: '8', name: 'Mia Chen',     triage_score: 2,  triage_level: 'ai',          trend: 'down',    scores: [6, 5, 4, 3, 2],    lastMessage: "Things are actually going well! Just checking in like you asked.", lastMessageTime: 'Yesterday' },
 ]
 
 export const motivationalQuotes = [
