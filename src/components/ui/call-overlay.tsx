@@ -97,7 +97,7 @@ export function useCall({ myId, targetId, targetName }: CallOverlayProps) {
       setStatus('idle')
       setCallError(err instanceof Error ? err.message : 'Could not start call')
     }
-  }, [targetId, targetName, deviceReady, setupCallListeners])
+  }, [targetId, deviceReady, setupCallListeners])
 
   const acceptCall = useCallback(() => {
     callRef.current?.accept()
@@ -137,7 +137,7 @@ export function useCall({ myId, targetId, targetName }: CallOverlayProps) {
 
 export function CallOverlay({
   status, muted, duration, incomingCallFrom, targetName,
-  callError, makeCall, acceptCall, rejectCall, hangUp, toggleMute, clearError,
+  callError, makeCall: _makeCall, acceptCall, rejectCall, hangUp, toggleMute, clearError,
 }: ReturnType<typeof useCall>) {
   return (
     <>
