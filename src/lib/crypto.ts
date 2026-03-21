@@ -17,7 +17,7 @@ export async function encryptMessage(plaintext: string, hexKey: string): Promise
   const combined = new Uint8Array(12 + ciphertext.byteLength)
   combined.set(iv)
   combined.set(new Uint8Array(ciphertext), 12)
-  return ENC_PREFIX + btoa(String.fromCharCode(...combined))
+  return ENC_PREFIX + btoa(Array.from(combined).map(b => String.fromCharCode(b)).join(''))
 }
 
 export async function decryptMessage(encoded: string, hexKey: string): Promise<string> {
