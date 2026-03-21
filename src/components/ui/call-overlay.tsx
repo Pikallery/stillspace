@@ -135,10 +135,9 @@ export function useCall({ myId, targetId, targetName }: CallOverlayProps) {
   }
 }
 
-export function CallOverlay({
-  status, muted, duration, incomingCallFrom, targetName,
-  callError, makeCall: _makeCall, acceptCall, rejectCall, hangUp, toggleMute, clearError,
-}: ReturnType<typeof useCall>) {
+export function CallOverlay(props: ReturnType<typeof useCall>) {
+  const { status, muted, duration, incomingCallFrom, targetName,
+    callError, acceptCall, rejectCall, hangUp, toggleMute, clearError } = props
   return (
     <>
       {/* Error toast */}
