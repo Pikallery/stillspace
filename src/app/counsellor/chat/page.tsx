@@ -34,9 +34,10 @@ export default function CounsellorChatPage() {
   // ── Auth ────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) setMyId(session.user.id)
-    })
+    })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load conversations ──────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export default function CounsellorChatPage() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversations', filter: `counsellor_id=eq.${myId}` },
-        async (payload) => {
+        async (payload: { new: { id: string } }) => {
           const { data } = await supabase
             .from('conversations')
             .select('*, student:profiles!conversations_student_id_fkey(*)')
@@ -101,7 +102,7 @@ export default function CounsellorChatPage() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${selectedConv.id}` },
-        async (payload) => {
+        async (payload: { new: { id: string } }) => {
           const { data } = await supabase
             .from('messages')
             .select('*, sender:profiles!messages_sender_id_fkey(*)')

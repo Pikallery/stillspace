@@ -19,15 +19,14 @@ export default function LoginPage() {
 
   // If already logged in, redirect to appropriate dashboard
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      supabase.from('profiles').select('role').eq('id', session.user.id).single()
-        .then(({ data }) => {
-          if (data?.role === 'student') router.replace('/student/dashboard')
-          else if (data?.role === 'counsellor') router.replace('/counsellor/dashboard')
-          else if (data?.role === 'admin') router.replace('/admin')
-        })
-    })
+      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
+      if (data?.role === 'student') router.replace('/student/dashboard')
+      else if (data?.role === 'counsellor') router.replace('/counsellor/dashboard')
+      else if (data?.role === 'admin') router.replace('/admin')
+    })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = async (e: React.FormEvent) => {

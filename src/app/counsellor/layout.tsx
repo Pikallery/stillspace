@@ -47,7 +47,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
 
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'SIGNED_OUT') router.replace('/login')
     })
     return () => subscription.unsubscribe()

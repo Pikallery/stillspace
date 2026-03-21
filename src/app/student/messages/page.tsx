@@ -39,9 +39,10 @@ export default function StudentMessagesPage() {
   // ── Get current user ────────────────────────────────────────────────────────
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) setMyId(session.user.id)
-    })
+    })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load conversations ──────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ export default function StudentMessagesPage() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${selectedConv.id}` },
-        async (payload) => {
+        async (payload: { new: { id: string } }) => {
           // Fetch with sender profile
           const { data } = await supabase
             .from('messages')

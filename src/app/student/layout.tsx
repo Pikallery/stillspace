@@ -70,7 +70,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'SIGNED_OUT') router.replace('/login')
     })
     return () => subscription.unsubscribe()

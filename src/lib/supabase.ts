@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient as _createClient } from '@supabase/supabase-js'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -93,6 +93,8 @@ export type Database = {
 }
 
 // ── Client factory ─────────────────────────────────────────────────────────────
-// Call inside components — auth-helpers manages cookie-based sessions via cookies
 
-export const createClient = () => createClientComponentClient<Database>()
+export const createClient = () => _createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)

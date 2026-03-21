@@ -78,11 +78,12 @@ export default function CommunityPage() {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      supabase.from('profiles').select('name').eq('id', session.user.id).single()
-        .then(({ data }) => { if (data?.name) setUserName(data.name) })
-    })
+      const { data } = await supabase.from('profiles').select('name').eq('id', session.user.id).single()
+      if (data?.name) setUserName(data.name)
+    })()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePost = async (type: 'public' | 'anonymous') => {
