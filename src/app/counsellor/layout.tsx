@@ -67,7 +67,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950/20 to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-[#B0D2D2]/12 to-gray-950">
 
       <FloatingNav
         items={primaryItems}

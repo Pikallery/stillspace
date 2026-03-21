@@ -73,7 +73,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-purple-950/20 to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-[#C2D0E9]/12 to-gray-950">
 
       <FloatingNav
         items={primaryItems}

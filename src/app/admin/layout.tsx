@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const currentItem = navItems.find(i => pathname === i.href || pathname.startsWith(i.href + '/'))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-blue-950/10 to-gray-950 flex">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-[#E2ECFB]/10 to-gray-950 flex">
 
       {/* ── Sidebar (md+) ───────────────────────────────────────── */}
       <aside className="hidden md:flex fixed left-0 top-0 h-full w-64
