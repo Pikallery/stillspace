@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   MessageCircle,
+  MessageSquare,
   Users,
   BookOpen,
   Wind,
@@ -18,65 +19,77 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { createClient } from '@/lib/supabase'
 
-// Bottom bar: 4 primary tabs + "More" sheet for the rest
 const bottomPrimary = [
-  { href: '/student/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/student/triage', label: 'Survey', icon: ClipboardList },
-  { href: '/student/chat', label: 'Chat', icon: MessageCircle },
-  { href: '/student/community', label: 'Community', icon: Users },
+  { href: '/student/dashboard', label: 'Home',     icon: LayoutDashboard },
+  { href: '/student/triage',   label: 'Survey',    icon: ClipboardList },
+  { href: '/student/chat',     label: 'AI Chat',   icon: MessageCircle },
+  { href: '/student/messages', label: 'Messages',  icon: MessageSquare },
 ]
 const bottomExtras = [
-  { href: '/student/diary', label: 'Diary', icon: BookOpen },
-  { href: '/student/breathing', label: 'Breathe', icon: Wind },
-  { href: '/student/todo', label: 'To-Do', icon: CheckSquare },
-  { href: '/student/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/student/community', label: 'Community', icon: Users },
+  { href: '/student/diary',     label: 'Diary',     icon: BookOpen },
+  { href: '/student/breathing', label: 'Breathe',   icon: Wind },
+  { href: '/student/todo',      label: 'To-Do',     icon: CheckSquare },
+  { href: '/student/calendar',  label: 'Calendar',  icon: Calendar },
 ]
 
-// Full sidebar nav
 const allNavItems = [
-  { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/student/triage', label: 'Triage Survey', icon: ClipboardList },
-  { href: '/student/chat', label: 'AI Chat', icon: MessageCircle },
-  { href: '/student/community', label: 'Community', icon: Users },
-  { href: '/student/diary', label: 'Diary', icon: BookOpen },
-  { href: '/student/breathing', label: 'Breathing', icon: Wind },
-  { href: '/student/todo', label: 'To-Do', icon: CheckSquare },
-  { href: '/student/calendar', label: 'Calendar', icon: Calendar },
+  { href: '/student/dashboard', label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/student/triage',    label: 'Triage Survey', icon: ClipboardList },
+  { href: '/student/chat',      label: 'AI Chat',      icon: MessageCircle },
+  { href: '/student/messages',  label: 'Messages',     icon: MessageSquare },
+  { href: '/student/community', label: 'Community',    icon: Users },
+  { href: '/student/diary',     label: 'Diary',        icon: BookOpen },
+  { href: '/student/breathing', label: 'Breathing',    icon: Wind },
+  { href: '/student/todo',      label: 'To-Do',        icon: CheckSquare },
+  { href: '/student/calendar',  label: 'Calendar',     icon: Calendar },
 ]
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [userName, setUserName] = useState('Student')
+  const supabase = createClient()
 
   useEffect(() => {
-    const role = localStorage.getItem('demo_role')
-    if (role !== 'student') {
-      router.replace('/login')
-      return
-    }
-    const name = localStorage.getItem('demo_name') || 'Student'
-    setUserName(name)
-  }, [router])
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
 
-  const handleLogout = () => {
-    localStorage.removeItem('demo_role')
-    localStorage.removeItem('demo_name')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'student') { router.replace('/login'); return }
+      setUserName(profile.name)
+    }
+
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') router.replace('/login')
+    })
+    return () => subscription.unsubscribe()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     router.push('/login')
   }
 
-  // Derive current page title for mobile top bar
   const currentItem = allNavItems.find(i => pathname === i.href || pathname.startsWith(i.href + '/'))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-purple-950/20 to-gray-950 flex">
 
-      {/* ── Sidebar (md and above only) ─────────────────────────── */}
+      {/* ── Sidebar (md+) ───────────────────────────────────────── */}
       <aside className="hidden md:flex fixed left-0 top-0 h-full w-64
                         bg-gray-900/90 border-r border-gray-800
                         backdrop-blur-sm z-40 flex-col">
-        {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
@@ -86,7 +99,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
 
-        {/* User Info */}
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
@@ -101,7 +113,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {allNavItems.map((item) => {
             const Icon = item.icon
@@ -123,7 +134,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           })}
         </nav>
 
-        {/* Logout */}
         <div className="p-4 border-t border-gray-800">
           <Button
             variant="ghost"
@@ -139,7 +149,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {/* ── Main content area ────────────────────────────────────── */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
 
-        {/* Mobile top bar (md hidden) */}
         <header className="md:hidden sticky top-0 z-30 h-14
                            flex items-center justify-between px-4
                            bg-gray-950/90 border-b border-gray-800 backdrop-blur-xl">
@@ -158,17 +167,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </Avatar>
         </header>
 
-        {/* Page content
-            pb-24 on mobile = bottom nav (4rem/64px) + ticker (2rem/32px) - already fixed
-            pb-10 on md = just the ticker */}
         <main className="flex-1 pb-24 md:pb-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               {children}
             </motion.div>
@@ -178,7 +184,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <MotivationTicker />
       </div>
 
-      {/* ── Bottom nav (mobile only) ─────────────────────────────── */}
       <BottomNav items={bottomPrimary} extras={bottomExtras} accentColor="purple" />
     </div>
   )

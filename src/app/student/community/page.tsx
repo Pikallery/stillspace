@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { PageTransition } from '@/components/ui/page-transition'
 import { Heart, MessageCircle, Send, ChevronDown, ChevronUp } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
 
 interface Post {
   id: string
@@ -69,6 +70,7 @@ const initialPosts: Post[] = [
 ]
 
 export default function CommunityPage() {
+  const supabase = createClient()
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [newPost, setNewPost] = useState('')
   const [posting, setPosting] = useState(false)
@@ -76,9 +78,12 @@ export default function CommunityPage() {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const name = localStorage.getItem('demo_name') || 'Student'
-    setUserName(name)
-  }, [])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      supabase.from('profiles').select('name').eq('id', session.user.id).single()
+        .then(({ data }) => { if (data?.name) setUserName(data.name) })
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePost = async (type: 'public' | 'anonymous') => {
     if (!newPost.trim()) return

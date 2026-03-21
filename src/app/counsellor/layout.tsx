@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { createClient } from '@/lib/supabase'
 
 const navItems = [
   { href: '/counsellor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,27 +24,37 @@ const navItems = [
   { href: '/counsellor/calendar',  label: 'Calendar',  icon: Calendar },
 ]
 
-// Bottom nav uses same 5 items directly (no "More" needed)
-const bottomItems = navItems.map(({ href, label, icon }) => ({ href, label, icon }))
-
 export default function CounsellorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [userName, setUserName] = useState('Counsellor')
+  const supabase = createClient()
 
   useEffect(() => {
-    const role = localStorage.getItem('demo_role')
-    if (role !== 'counsellor') {
-      router.replace('/login')
-      return
-    }
-    const name = localStorage.getItem('demo_name') || 'Dr. Counsellor'
-    setUserName(name)
-  }, [router])
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
 
-  const handleLogout = () => {
-    localStorage.removeItem('demo_role')
-    localStorage.removeItem('demo_name')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'counsellor') { router.replace('/login'); return }
+      setUserName(profile.name)
+    }
+
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') router.replace('/login')
+    })
+    return () => subscription.unsubscribe()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     router.push('/login')
   }
 
@@ -56,7 +67,6 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
       <aside className="hidden md:flex fixed left-0 top-0 h-full w-64
                         bg-gray-900/90 border-r border-gray-800
                         backdrop-blur-sm z-40 flex-col">
-        {/* Logo */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
@@ -69,7 +79,6 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
           </div>
         </div>
 
-        {/* User Info */}
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <Avatar className="w-10 h-10">
@@ -84,7 +93,6 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -106,7 +114,6 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
           })}
         </nav>
 
-        {/* Logout */}
         <div className="p-4 border-t border-gray-800">
           <Button
             variant="ghost"
@@ -122,7 +129,6 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
       {/* ── Main content area ────────────────────────────────────── */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
 
-        {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 h-14
                            flex items-center justify-between px-4
                            bg-gray-950/90 border-b border-gray-800 backdrop-blur-xl">
@@ -144,15 +150,14 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
           </div>
         </header>
 
-        {/* Page content — pb-20 mobile (just bottom nav, no ticker in counsellor) */}
         <main className="flex-1 pb-20 md:pb-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               {children}
             </motion.div>
@@ -160,8 +165,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
         </main>
       </div>
 
-      {/* ── Bottom nav (mobile only) ─────────────────────────────── */}
-      <BottomNav items={bottomItems} accentColor="indigo" />
+      <BottomNav items={navItems} accentColor="indigo" />
     </div>
   )
 }

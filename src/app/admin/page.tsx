@@ -1,9 +1,9 @@
 'use client'
-// No Claude API calls in admin panel
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageTransition } from '@/components/ui/page-transition'
-import { mockStudents, mockMoodTrends } from '@/lib/mock-data'
+import { createClient, type Profile } from '@/lib/supabase'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
@@ -11,9 +11,42 @@ import {
 import { Users, UserCheck, AlertTriangle, TrendingUp } from 'lucide-react'
 
 export default function AdminPage() {
-  const emergencyCount = mockStudents.filter(s => s.triage_level === 'emergency').length
-  const counsellorCount = 4
-  const avgMood = (mockMoodTrends.reduce((s, d) => s + d.avgMood, 0) / mockMoodTrends.length).toFixed(1)
+  const supabase = createClient()
+  const [students, setStudents] = useState<Profile[]>([])
+  const [counsellorCount, setCounsellorCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const [{ data: studentData }, { count }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('role', 'student'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'counsellor'),
+      ])
+      setStudents((studentData as Profile[]) ?? [])
+      setCounsellorCount(count ?? 0)
+      setLoading(false)
+    }
+    load()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const emergencyCount = students.filter(s => s.triage_level === 'emergency').length
+  const aiCount = students.filter(s => s.triage_level === 'ai').length
+  const counsellorLevelCount = students.filter(s => s.triage_level === 'counsellor').length
+  const total = students.length
+
+  const triageData = [
+    { level: 'AI Support (Low)', count: aiCount, color: 'bg-green-500', pct: total ? Math.round(aiCount / total * 100) : 0 },
+    { level: 'Counsellor (Moderate)', count: counsellorLevelCount, color: 'bg-indigo-500', pct: total ? Math.round(counsellorLevelCount / total * 100) : 0 },
+    { level: 'Emergency (High)', count: emergencyCount, color: 'bg-amber-500', pct: total ? Math.round(emergencyCount / total * 100) : 0 },
+  ]
+
+  const scoreDistribution = [
+    { range: '1-2', count: students.filter(s => (s.triage_score ?? 0) <= 2).length },
+    { range: '3-4', count: students.filter(s => (s.triage_score ?? 0) >= 3 && (s.triage_score ?? 0) <= 4).length },
+    { range: '5-6', count: students.filter(s => (s.triage_score ?? 0) >= 5 && (s.triage_score ?? 0) <= 6).length },
+    { range: '7-8', count: students.filter(s => (s.triage_score ?? 0) >= 7 && (s.triage_score ?? 0) <= 8).length },
+    { range: '9-10', count: students.filter(s => (s.triage_score ?? 0) >= 9).length },
+  ]
 
   return (
     <PageTransition>
@@ -26,10 +59,10 @@ export default function AdminPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Students', value: mockStudents.length, icon: Users, color: 'indigo', sub: 'Active users' },
-            { label: 'Counsellors', value: counsellorCount, icon: UserCheck, color: 'green', sub: '3 available' },
-            { label: 'Emergency Cases', value: emergencyCount, icon: AlertTriangle, color: 'amber', sub: 'Need attention' },
-            { label: 'Avg Mood Score', value: avgMood, icon: TrendingUp, color: 'purple', sub: 'Out of 5.0' },
+            { label: 'Total Students', value: loading ? '…' : total, icon: Users, color: 'indigo', sub: 'Active users' },
+            { label: 'Counsellors', value: loading ? '…' : counsellorCount, icon: UserCheck, color: 'green', sub: 'On platform' },
+            { label: 'Emergency Cases', value: loading ? '…' : emergencyCount, icon: AlertTriangle, color: 'amber', sub: 'Need attention' },
+            { label: 'Assessed Students', value: loading ? '…' : students.filter(s => s.triage_score != null).length, icon: TrendingUp, color: 'purple', sub: 'Completed triage' },
           ].map((stat, i) => {
             const Icon = stat.icon
             return (
@@ -53,24 +86,25 @@ export default function AdminPage() {
           })}
         </div>
 
-        {/* Mood Trend Chart */}
+        {/* Score Distribution Chart */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card className="bg-gray-900/50 border-gray-800">
             <CardHeader>
-              <CardTitle className="text-white">Weekly Mood Trend</CardTitle>
+              <CardTitle className="text-white">Triage Score Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={mockMoodTrends}>
+                <BarChart data={scoreDistribution}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="day" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                  <YAxis domain={[0, 5]} stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <XAxis dataKey="range" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12 }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#e5e7eb' }}
+                    formatter={(val) => [val, 'Students']}
                   />
-                  <Bar dataKey="avgMood" radius={[6, 6, 0, 0]}>
-                    {mockMoodTrends.map((entry, i) => (
-                      <Cell key={i} fill={entry.avgMood >= 4 ? '#4ade80' : entry.avgMood >= 3 ? '#818cf8' : '#f87171'} />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                    {scoreDistribution.map((entry, i) => (
+                      <Cell key={i} fill={i <= 1 ? '#4ade80' : i === 2 ? '#818cf8' : '#f87171'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -87,11 +121,7 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {[
-                  { level: 'AI Support (Low)', count: 2, color: 'bg-green-500', pct: 50 },
-                  { level: 'Counsellor (Moderate)', count: 1, color: 'bg-indigo-500', pct: 25 },
-                  { level: 'Emergency (High)', count: 1, color: 'bg-amber-500', pct: 25 },
-                ].map((item) => (
+                {triageData.map((item) => (
                   <div key={item.level}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-300">{item.level}</span>

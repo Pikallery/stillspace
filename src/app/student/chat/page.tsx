@@ -115,8 +115,8 @@ export default function ChatPage() {
     // WhatsApp-style: fixed height = viewport minus top bar (3.5rem) and bottom nav (4rem)
     // On md+ no bottom nav: just viewport minus nothing (full screen)
     <div className="flex flex-col overflow-hidden
-                    h-[calc(100dvh-3.5rem-4rem)]
-                    md:h-[calc(100dvh-0px)]">
+                    h-[calc(100dvh-3.5rem-4rem-2rem)]
+                    md:h-[calc(100dvh-2.5rem)]">
 
       {/* ── Chat header ────────────────────────────────────────── */}
       <div className="shrink-0 px-4 py-3 border-b border-gray-800 bg-gray-900/50

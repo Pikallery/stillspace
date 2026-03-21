@@ -1,129 +1,156 @@
--- MindBridge Database Schema
+-- ============================================================
+-- StillSpace — Supabase Schema
+-- Run this entire file in Supabase Dashboard → SQL Editor
+-- ============================================================
 
--- Users table
-CREATE TABLE users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text UNIQUE NOT NULL,
-  role text DEFAULT 'student' CHECK (role IN ('student', 'counsellor', 'admin')),
-  name text NOT NULL,
-  is_banned boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
+-- ── 1. Profiles (extends auth.users) ──────────────────────────────────────────
 
--- Triage surveys
-CREATE TABLE triage_surveys (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  score int NOT NULL,
-  level text NOT NULL CHECK (level IN ('ai', 'counsellor', 'emergency')),
-  summary text,
-  created_at timestamptz DEFAULT now()
-);
-
--- Direct chat messages (between student and counsellor)
-CREATE TABLE chat_messages (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  sender_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  receiver_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
--- AI chat messages
-CREATE TABLE ai_chat_messages (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  role text NOT NULL CHECK (role IN ('user', 'assistant')),
-  content text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
--- Community posts
-CREATE TABLE posts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  author_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  is_anonymous boolean DEFAULT false,
-  likes_count int DEFAULT 0,
-  is_flagged boolean DEFAULT false,
-  risk_level text DEFAULT 'low' CHECK (risk_level IN ('low', 'medium', 'high')),
-  created_at timestamptz DEFAULT now()
-);
-
--- Post comments
-CREATE TABLE post_comments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id uuid REFERENCES posts(id) ON DELETE CASCADE,
-  author_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
--- Counsellor profiles
-CREATE TABLE counsellor_profiles (
-  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+create table if not exists public.profiles (
+  id              uuid references auth.users on delete cascade primary key,
+  name            text not null,
+  role            text not null check (role in ('student', 'counsellor', 'admin')),
+  email           text not null,
+  mobile          text,
+  is_available    boolean default true,
+  is_banned       boolean default false,
+  bio             text,
   specializations text[],
-  rating numeric DEFAULT 4.5,
-  is_available boolean DEFAULT true,
-  bio text
+  rating          numeric(3,2) default 5.0,
+  triage_score    integer,
+  triage_level    text,
+  -- Student-specific
+  college         text,
+  course          text,
+  reg_number      text,
+  section         text,
+  branch          text,
+  -- Counsellor-specific
+  experience      text,
+  created_at      timestamptz default now()
 );
 
--- Student profiles
-CREATE TABLE student_profiles (
-  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  triage_score int,
-  triage_level text CHECK (triage_level IN ('ai', 'counsellor', 'emergency')),
-  assigned_counsellor_id uuid REFERENCES users(id)
+-- ── 2. Conversations ──────────────────────────────────────────────────────────
+
+create table if not exists public.conversations (
+  id            uuid default gen_random_uuid() primary key,
+  student_id    uuid references public.profiles(id) on delete cascade not null,
+  counsellor_id uuid references public.profiles(id) on delete cascade not null,
+  created_at    timestamptz default now(),
+  unique(student_id, counsellor_id)
 );
 
--- Diary entries
-CREATE TABLE diary_entries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  background_theme text DEFAULT 'gradient-1',
-  created_at timestamptz DEFAULT now()
+-- ── 3. Messages ───────────────────────────────────────────────────────────────
+
+create table if not exists public.messages (
+  id              uuid default gen_random_uuid() primary key,
+  conversation_id uuid references public.conversations(id) on delete cascade not null,
+  sender_id       uuid references public.profiles(id) on delete cascade not null,
+  content         text not null,
+  created_at      timestamptz default now()
 );
 
--- Calendar events
-CREATE TABLE calendar_events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  event_type text NOT NULL CHECK (event_type IN ('exam', 'session', 'personal')),
-  date date NOT NULL,
-  created_at timestamptz DEFAULT now()
+-- ── 4. Triage results ─────────────────────────────────────────────────────────
+
+create table if not exists public.triage_results (
+  id         uuid default gen_random_uuid() primary key,
+  student_id uuid references public.profiles(id) on delete cascade not null,
+  score      integer not null,
+  level      text not null,
+  answers    jsonb,
+  created_at timestamptz default now()
 );
 
--- Todo items
-CREATE TABLE todo_items (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  task text NOT NULL,
-  is_done boolean DEFAULT false,
-  due_date date,
-  created_at timestamptz DEFAULT now()
-);
+-- ── 5. Row Level Security ─────────────────────────────────────────────────────
 
--- Counsellor notes
-CREATE TABLE counsellor_notes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  counsellor_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  student_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  content text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
+alter table public.profiles        enable row level security;
+alter table public.conversations   enable row level security;
+alter table public.messages        enable row level security;
+alter table public.triage_results  enable row level security;
 
--- Row Level Security Policies
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE triage_surveys ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE counsellor_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE diary_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE todo_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE counsellor_notes ENABLE ROW LEVEL SECURITY;
+-- Profiles: all authenticated users can read; own row only for write
+create policy "profiles_select" on public.profiles
+  for select to authenticated using (true);
+
+create policy "profiles_insert" on public.profiles
+  for insert with check (auth.uid() = id);
+
+create policy "profiles_update" on public.profiles
+  for update using (auth.uid() = id);
+
+-- Conversations: only participants
+create policy "conversations_select" on public.conversations
+  for select using (auth.uid() = student_id or auth.uid() = counsellor_id);
+
+create policy "conversations_insert" on public.conversations
+  for insert with check (auth.uid() = student_id);
+
+-- Messages: participants only
+create policy "messages_select" on public.messages
+  for select using (
+    exists (
+      select 1 from public.conversations
+      where id = conversation_id
+        and (student_id = auth.uid() or counsellor_id = auth.uid())
+    )
+  );
+
+create policy "messages_insert" on public.messages
+  for insert with check (
+    auth.uid() = sender_id
+    and exists (
+      select 1 from public.conversations
+      where id = conversation_id
+        and (student_id = auth.uid() or counsellor_id = auth.uid())
+    )
+  );
+
+-- Triage: students insert own; counsellors/admins read all
+create policy "triage_insert" on public.triage_results
+  for insert with check (auth.uid() = student_id);
+
+create policy "triage_select" on public.triage_results
+  for select using (
+    auth.uid() = student_id
+    or exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('counsellor', 'admin')
+    )
+  );
+
+-- ── 6. Auto-create profile on signup ──────────────────────────────────────────
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, name, role, mobile, college, course, reg_number, section, branch, experience, specializations)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'role', 'student'),
+    new.raw_user_meta_data->>'mobile',
+    new.raw_user_meta_data->>'college',
+    new.raw_user_meta_data->>'course',
+    new.raw_user_meta_data->>'reg_number',
+    new.raw_user_meta_data->>'section',
+    new.raw_user_meta_data->>'branch',
+    new.raw_user_meta_data->>'experience',
+    case
+      when new.raw_user_meta_data->>'specializations' is not null
+      then string_to_array(new.raw_user_meta_data->>'specializations', ',')
+      else null
+    end
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ── 7. Enable Realtime ────────────────────────────────────────────────────────
+
+alter publication supabase_realtime add table public.messages;
+alter publication supabase_realtime add table public.conversations;

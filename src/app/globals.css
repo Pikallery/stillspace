@@ -40,6 +40,36 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Pixel RPG utilities */
+  .pixel-font {
+    font-family: var(--font-pixel), monospace;
+  }
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .pixel-border {
+    box-shadow:
+      0 -4px 0 0 #fff,
+      0 4px 0 0 #fff,
+      -4px 0 0 0 #fff,
+      4px 0 0 0 #fff,
+      0 -8px 0 0 #000,
+      0 8px 0 0 #000,
+      -8px 0 0 0 #000,
+      8px 0 0 0 #000;
+  }
+  .pixel-border-purple {
+    box-shadow:
+      0 -4px 0 0 #a855f7,
+      0 4px 0 0 #a855f7,
+      -4px 0 0 0 #a855f7,
+      4px 0 0 0 #a855f7,
+      0 -8px 0 0 #000,
+      0 8px 0 0 #000,
+      -8px 0 0 0 #000,
+      8px 0 0 0 #000;
+  }
 }
 
 @keyframes pulse-emergency {

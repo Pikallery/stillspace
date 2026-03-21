@@ -5,29 +5,36 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { OnboardingSkit } from '@/components/onboarding-skit'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase'
 
 export default function HomePage() {
   const router = useRouter()
+  const supabase = createClient()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    const role = localStorage.getItem('demo_role')
-    const hasSeenOnboarding = localStorage.getItem('seen_onboarding')
-
-    if (role) {
-      if (role === 'student') router.push('/student/dashboard')
-      else if (role === 'counsellor') router.push('/counsellor/dashboard')
-      else if (role === 'admin') router.push('/admin')
-      return
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+        if (profile?.role === 'student') { router.push('/student/dashboard'); return }
+        if (profile?.role === 'counsellor') { router.push('/counsellor/dashboard'); return }
+        if (profile?.role === 'admin') { router.push('/admin'); return }
+      }
+      const hasSeenOnboarding = localStorage.getItem('seen_onboarding')
+      if (!hasSeenOnboarding) {
+        setShowOnboarding(true)
+      } else {
+        setChecked(true)
+      }
     }
-
-    if (!hasSeenOnboarding) {
-      setShowOnboarding(true)
-    } else {
-      setChecked(true)
-    }
-  }, [router])
+    check()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOnboardingComplete = () => {
     localStorage.setItem('seen_onboarding', 'true')

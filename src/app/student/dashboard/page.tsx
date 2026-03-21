@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageTransition } from '@/components/ui/page-transition'
 import { mockRecentActivity } from '@/lib/mock-data'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 import {
   ClipboardList,
   MessageCircle,
@@ -52,15 +53,25 @@ function getGreeting() {
 
 export default function StudentDashboard() {
   const router = useRouter()
+  const supabase = createClient()
   const [userName, setUserName] = useState('Student')
   const [mood, setMood] = useState(3)
   const [aiQuestion, setAiQuestion] = useState('')
   const [loadingQuestion, setLoadingQuestion] = useState(false)
 
   useEffect(() => {
-    const name = localStorage.getItem('demo_name') || 'Student'
-    setUserName(name)
-  }, [])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', session.user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.name) setUserName(data.name)
+        })
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDailyQuestion = async (moodValue: number) => {
     setLoadingQuestion(true)

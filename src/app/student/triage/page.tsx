@@ -1,366 +1,573 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { PageTransition } from '@/components/ui/page-transition'
-import { triageQuestions, mockCounsellors } from '@/lib/mock-data'
 import { useRouter } from 'next/navigation'
-import { Star, Phone, CheckCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase'
 
-type TriageResult = {
-  score: number
-  level: 'ai' | 'counsellor' | 'emergency'
-  summary: string
+// ── Quest data ─────────────────────────────────────────────────────────────────
+
+interface Scene {
+  id: number
+  npc: string
+  npcName: string
+  dialogue: string
+  bg: string
+  options: { text: string; value: number }[]
 }
+
+const scenes: Scene[] = [
+  {
+    id: 1,
+    npc: '🧙‍♂️',
+    npcName: 'Elder Mage',
+    dialogue: "Traveller... I sense a shadow upon thy spirit. Over the past two weeks — how oft hast thou felt down, depressed, or hopeless?",
+    bg: 'from-gray-950 via-purple-950/40 to-gray-950',
+    options: [
+      { text: 'Not at all',             value: 0 },
+      { text: 'Several days',           value: 1 },
+      { text: 'More than half the days', value: 2 },
+      { text: 'Nearly every day',       value: 3 },
+    ],
+  },
+  {
+    id: 2,
+    npc: '🌿',
+    npcName: 'Forest Sprite',
+    dialogue: "The enchanted forest grows dim... How often hast thou lost interest or pleasure in the things thou once loved?",
+    bg: 'from-gray-950 via-green-950/30 to-gray-950',
+    options: [
+      { text: 'Not at all',             value: 0 },
+      { text: 'Several days',           value: 1 },
+      { text: 'More than half the days', value: 2 },
+      { text: 'Nearly every day',       value: 3 },
+    ],
+  },
+  {
+    id: 3,
+    npc: '🌙',
+    npcName: 'Moon Oracle',
+    dialogue: "The stars whisper of restless nights... How wouldst thou rate thine sleep quality of late?",
+    bg: 'from-gray-950 via-indigo-950/40 to-gray-950',
+    options: [
+      { text: 'Very good', value: 0 },
+      { text: 'Good',      value: 1 },
+      { text: 'Fair',      value: 2 },
+      { text: 'Poor',      value: 3 },
+    ],
+  },
+  {
+    id: 4,
+    npc: '⚔️',
+    npcName: 'Battle Sage',
+    dialogue: "Many quests weigh upon a hero's mind. How often dost thou feel anxious or worried about thine studies?",
+    bg: 'from-gray-950 via-red-950/30 to-gray-950',
+    options: [
+      { text: 'Rarely',        value: 0 },
+      { text: 'Sometimes',     value: 1 },
+      { text: 'Often',         value: 2 },
+      { text: 'Almost always', value: 3 },
+    ],
+  },
+  {
+    id: 5,
+    npc: '📜',
+    npcName: 'Scholar Golem',
+    dialogue: "The tome of knowledge awaits... Yet how well art thou able to concentrate upon thine work?",
+    bg: 'from-gray-950 via-amber-950/30 to-gray-950',
+    options: [
+      { text: 'Very well',       value: 0 },
+      { text: 'Reasonably well', value: 1 },
+      { text: 'Not very well',   value: 2 },
+      { text: 'Not at all',      value: 3 },
+    ],
+  },
+  {
+    id: 6,
+    npc: '🏰',
+    npcName: 'Village Elder',
+    dialogue: "No hero walks alone. How supported dost thou feel by thine allies — friends and family?",
+    bg: 'from-gray-950 via-cyan-950/30 to-gray-950',
+    options: [
+      { text: 'Very supported',     value: 0 },
+      { text: 'Somewhat supported', value: 1 },
+      { text: 'Slightly supported', value: 2 },
+      { text: 'Not supported',      value: 3 },
+    ],
+  },
+  {
+    id: 7,
+    npc: '💀',
+    npcName: 'Shadow Keeper',
+    dialogue: "I must ask thee of the darkest dungeon... Hast thou experienced thoughts of harming thyself?",
+    bg: 'from-gray-950 via-gray-900/60 to-gray-950',
+    options: [
+      { text: 'Never',     value: 0 },
+      { text: 'Rarely',    value: 1 },
+      { text: 'Sometimes', value: 2 },
+      { text: 'Often',     value: 3 },
+    ],
+  },
+  {
+    id: 8,
+    npc: '✨',
+    npcName: 'Light Guardian',
+    dialogue: "We near the end of this quest. How wouldst thou rate thine overall mental wellbeing right now?",
+    bg: 'from-gray-950 via-purple-950/40 to-gray-950',
+    options: [
+      { text: 'Excellent', value: 0 },
+      { text: 'Good',      value: 1 },
+      { text: 'Fair',      value: 2 },
+      { text: 'Poor',      value: 3 },
+    ],
+  },
+]
+
+// ── Typewriter hook ─────────────────────────────────────────────────────────────
+
+function useTypewriter(text: string, speed = 38) {
+  const [displayed, setDisplayed] = useState('')
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    setDisplayed('')
+    setDone(false)
+    let i = 0
+    const id = setInterval(() => {
+      i++
+      setDisplayed(text.slice(0, i))
+      if (i >= text.length) {
+        clearInterval(id)
+        setDone(true)
+      }
+    }, speed)
+    return () => clearInterval(id)
+  }, [text, speed])
+
+  const skip = useCallback(() => {
+    setDisplayed(text)
+    setDone(true)
+  }, [text])
+
+  return { displayed, done, skip }
+}
+
+// ── Score → result level ────────────────────────────────────────────────────────
+
+function getResult(score: number): 'ai' | 'counsellor' | 'emergency' {
+  const max = scenes.length * 3   // 24
+  const pct = score / max
+  if (pct < 0.33) return 'ai'
+  if (pct < 0.58) return 'counsellor'
+  return 'emergency'
+}
+
+// ── Component ───────────────────────────────────────────────────────────────────
+
+type Phase = 'intro' | 'quest' | 'result'
 
 export default function TriagePage() {
   const router = useRouter()
-  const [currentQ, setCurrentQ] = useState(0)
-  const [answers, setAnswers] = useState<number[]>([])
-  const [direction, setDirection] = useState(1)
-  const [result, setResult] = useState<TriageResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [connecting, setConnecting] = useState(false)
+  const supabase = createClient()
+  const [phase, setPhase] = useState<Phase>('intro')
+  const [sceneIdx, setSceneIdx] = useState(0)
+  const [scores, setScores] = useState<number[]>([])
+  const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  const [knightIn, setKnightIn] = useState(false)
+  const [resultLevel, setResultLevel] = useState<'ai' | 'counsellor' | 'emergency'>('ai')
 
-  const progress = (currentQ / triageQuestions.length) * 100
+  const scene = scenes[sceneIdx]
+  const { displayed, done, skip } = useTypewriter(
+    phase === 'quest' ? scene.dialogue : '',
+    38
+  )
 
-  const handleAnswer = async (optionIndex: number) => {
-    const newAnswers = [...answers, optionIndex]
-    setAnswers(newAnswers)
-    setDirection(1)
+  // Knight walks in fresh on each new scene
+  useEffect(() => {
+    if (phase !== 'quest') return
+    setKnightIn(false)
+    setSelectedOption(null)
+    const t = setTimeout(() => setKnightIn(true), 120)
+    return () => clearTimeout(t)
+  }, [sceneIdx, phase])
 
-    if (currentQ < triageQuestions.length - 1) {
-      setCurrentQ(prev => prev + 1)
-    } else {
-      setLoading(true)
-      try {
-        const res = await fetch('/api/triage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers: newAnswers }),
-        })
-        if (res.ok) {
-          setResult(await res.json())
-        } else {
-          throw new Error('API error')
-        }
-      } catch {
-        const total = newAnswers.reduce((a, b) => a + b, 0)
-        const score = Math.min(10, Math.max(1, Math.round((total / newAnswers.length) * 2.5) + 1))
-        const level = score <= 4 ? 'ai' : score <= 7 ? 'counsellor' : 'emergency'
-        setResult({ score, level, summary: 'Assessment complete. Based on your responses, we have determined your support level.' })
-      } finally {
-        setLoading(false)
+  async function saveResult(total: number, level: string, allScores: number[]) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const studentId = session.user.id
+    // Save triage result
+    await supabase.from('triage_results').insert({
+      student_id: studentId,
+      score: total,
+      level,
+      answers: allScores,
+    })
+    // Update profile with latest triage level
+    await supabase.from('profiles').update({
+      triage_score: total,
+      triage_level: level,
+    }).eq('id', studentId)
+  }
+
+  function handleAnswer(value: number) {
+    if (selectedOption !== null) return
+    setSelectedOption(value)
+    const newScores = [...scores, value]
+    setTimeout(() => {
+      if (sceneIdx < scenes.length - 1) {
+        setScores(newScores)
+        setSceneIdx(s => s + 1)
+      } else {
+        const total = newScores.reduce((a, b) => a + b, 0)
+        const level = getResult(total)
+        setResultLevel(level)
+        setPhase('result')
+        saveResult(total, level, newScores)
       }
-    }
+    }, 600)
   }
 
-  const handleBack = () => {
-    if (currentQ > 0) {
-      setDirection(-1)
-      setCurrentQ(prev => prev - 1)
-      setAnswers(prev => prev.slice(0, -1))
-    }
-  }
-
-  // ── Loading state ──────────────────────────────────────────────
-  if (loading) {
+  // ── INTRO ────────────────────────────────────────────────────────────────────
+  if (phase === 'intro') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <motion.div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-            className="w-14 h-14 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"
-          />
-          <p className="text-white text-lg font-semibold">Analysing your responses…</p>
-          <p className="text-gray-400 text-sm mt-1">This just takes a moment</p>
-        </motion.div>
-      </div>
-    )
-  }
-
-  // ── Results ────────────────────────────────────────────────────
-  if (result) {
-
-    // Emergency
-    if (result.level === 'emergency') {
-      if (connecting) {
-        return (
-          <div className="min-h-screen flex items-center justify-center px-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center max-w-sm w-full"
-            >
-              <motion.div
-                className="w-28 h-28 rounded-full bg-amber-500/20 border-4 border-amber-400
-                           flex items-center justify-center mx-auto mb-6 emergency-pulse"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <span className="text-5xl">👩‍⚕️</span>
-              </motion.div>
-              <h2 className="text-2xl font-bold text-white mb-2">Connecting you to your counsellor…</h2>
-              <p className="text-amber-300 mb-6 text-sm">Dr. Sarah Chen is available and will be with you shortly</p>
-              <div className="flex gap-2 justify-center mb-6">
-                {[0, 1, 2].map(i => (
-                  <motion.div
-                    key={i}
-                    className="w-3 h-3 bg-amber-400 rounded-full"
-                    animate={{ y: [-5, 5, -5] }}
-                    transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
-                  />
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setConnecting(false)}
-                className="border-gray-600 text-gray-300 min-h-[48px] px-8"
-              >
-                Cancel
-              </Button>
-            </motion.div>
-          </div>
-        )
-      }
-
-      return (
-        <div className="min-h-screen flex items-center justify-center p-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-lg w-full"
-          >
-            <Card className="border-amber-500/50 bg-amber-950/30 backdrop-blur-sm emergency-pulse">
-              <CardContent className="pt-8 pb-8 text-center px-6">
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🤝</span>
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">We Are Here For You</h2>
-                <p className="text-amber-200 mb-2 text-lg">You are not alone in this journey</p>
-                <p className="text-gray-300 text-sm mb-4">{result.summary}</p>
-                <p className="text-amber-300 text-sm mb-6">
-                  A counsellor is ready to support you right now. Please reach out — you deserve care.
-                </p>
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => setConnecting(true)}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold min-h-[52px] text-base"
-                  >
-                    <Phone size={18} className="mr-2" />
-                    Connect to Counsellor Now
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push('/student/chat')}
-                    className="w-full border-amber-600/50 text-amber-300 hover:bg-amber-900/20 min-h-[48px]"
-                  >
-                    Chat with AI Support First
-                  </Button>
-                </div>
-                <p className="text-gray-400 text-xs mt-4">Crisis line: 988 (Suicide & Crisis Lifeline)</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      )
-    }
-
-    // Counsellor level
-    if (result.level === 'counsellor') {
-      return (
-        <PageTransition>
-          <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="bg-indigo-900/30 border-indigo-700/40">
-                <CardContent className="pt-6 pb-5 text-center px-5">
-                  <span className="text-4xl mb-3 block">💙</span>
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Connect with a Counsellor</h2>
-                  <p className="text-indigo-200 text-sm">Score: {result.score}/10 — {result.summary}</p>
-                  <p className="text-gray-300 text-sm mt-2">
-                    We recommend speaking with one of our professional counsellors for personalised support.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <h3 className="text-white font-semibold">Available Counsellors</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {mockCounsellors.map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <Card className={`bg-gray-900/50 border-gray-800 ${!c.is_available ? 'opacity-60' : ''}`}>
-                    <CardContent className="pt-5 pb-5">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
-                                        flex items-center justify-center text-white font-bold text-lg shrink-0">
-                          {c.name.charAt(4)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1 flex-wrap">
-                            <h4 className="text-white font-semibold text-sm">{c.name}</h4>
-                            <Badge className={c.is_available
-                              ? 'bg-green-900/50 text-green-300 border-green-700/50 text-xs'
-                              : 'bg-gray-800 text-gray-400 border-gray-700 text-xs'}>
-                              {c.is_available ? 'Available' : 'Busy'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1 mb-2">
-                            <Star size={12} className="text-amber-400 fill-amber-400" />
-                            <span className="text-amber-300 text-sm font-medium">{c.rating}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {c.specializations.map(s => (
-                              <Badge key={s} variant="secondary" className="text-xs bg-gray-800 text-gray-300">
-                                {s}
-                              </Badge>
-                            ))}
-                          </div>
-                          <p className="text-gray-400 text-xs mb-3 line-clamp-2">{c.bio}</p>
-                          <Button
-                            size="sm"
-                            disabled={!c.is_available}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm min-h-[44px]"
-                          >
-                            {c.is_available ? 'Connect Now' : 'Not Available'}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </PageTransition>
-      )
-    }
-
-    // AI level
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-[calc(100dvh-2rem)] flex flex-col items-center justify-center px-4 bg-gradient-to-br from-gray-950 via-purple-950/30 to-gray-950">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full"
+          transition={{ duration: 0.5 }}
+          className="max-w-sm w-full text-center space-y-6"
         >
-          <Card className="bg-green-900/20 border-green-700/40">
-            <CardContent className="pt-8 pb-8 text-center px-6">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', delay: 0.2 }}
-              >
-                <CheckCircle size={60} className="text-green-400 mx-auto mb-4" />
-              </motion.div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">StillSpace AI is Here for You</h2>
-              <p className="text-green-200 mb-2 font-medium">Score: {result.score}/10</p>
-              <p className="text-gray-300 text-sm mb-4">{result.summary}</p>
-              <p className="text-gray-300 text-sm mb-6">
-                You are doing well! Our AI companion can help you navigate any challenges.
-              </p>
-              <div className="space-y-3">
-                <Button
-                  onClick={() => router.push('/student/chat')}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white min-h-[52px] text-base"
-                >
-                  Chat with AI Now
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push('/student/dashboard')}
-                  className="w-full border-gray-700 text-gray-300 min-h-[48px]"
-                >
-                  Back to Dashboard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Title card */}
+          <div className="relative border-2 border-purple-500/60 bg-gray-900/80 p-6">
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-purple-400" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-purple-400" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-purple-400" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-purple-400" />
+            <div className="text-4xl mb-4">⚔️</div>
+            <h1 className="pixel-font text-purple-300 text-[10px] leading-7 mb-1">MENTAL HEALTH</h1>
+            <h2 className="pixel-font text-white text-[9px] leading-6">QUEST CHECK-IN</h2>
+          </div>
+
+          {/* Description */}
+          <div className="border border-gray-700/50 bg-gray-900/60 p-4">
+            <p className="pixel-font text-gray-300 text-[7px] leading-6">
+              A short quest of 8 questions awaits thee. Answer honestly — thine answers guide the healers.
+            </p>
+          </div>
+
+          {/* Knight sprite */}
+          <div className="flex justify-center py-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/sprites/knight.gif"
+              alt="Your knight"
+              width={80}
+              height={80}
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
+
+          <Button
+            onClick={() => setPhase('quest')}
+            className="w-full rounded-none bg-purple-700 hover:bg-purple-600 border border-purple-400/40 pixel-font text-[8px] tracking-widest py-6"
+          >
+            ▶ BEGIN QUEST
+          </Button>
         </motion.div>
       </div>
     )
   }
 
-  // ── Survey questions (full-screen card per question) ───────────
-  const question = triageQuestions[currentQ]
+  // ── QUEST SCENE ──────────────────────────────────────────────────────────────
+  if (phase === 'quest') {
+    return (
+      <div className={`min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-[calc(100dvh-2rem)] flex flex-col bg-gradient-to-br ${scene.bg} transition-colors duration-700`}>
 
-  return (
-    <div className="min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-screen
-                    flex flex-col px-4 pt-4 pb-6 sm:px-6 sm:pt-6">
-      {/* Progress */}
-      <div className="mb-6 shrink-0">
-        <div className="flex justify-between text-xs text-gray-400 mb-2">
-          <span>Question {currentQ + 1} of {triageQuestions.length}</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <Progress value={progress} className="h-2 bg-gray-800" />
-      </div>
-
-      {/* Question card — fills available vertical space */}
-      <div className="flex-1 flex flex-col max-w-xl w-full mx-auto">
-        <AnimatePresence mode="wait" custom={direction}>
+        {/* Progress strip */}
+        <div className="shrink-0 h-1.5 bg-gray-800 w-full">
           <motion.div
-            key={currentQ}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -direction * 60 }}
-            transition={{ duration: 0.28 }}
-            className="flex-1 flex flex-col"
-          >
-            <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-sm flex-1 flex flex-col">
-              <CardHeader className="pb-4">
-                <p className="text-purple-400 text-xs font-semibold uppercase tracking-widest mb-1">
-                  Mental Health Check-In
-                </p>
-                <CardTitle className="text-white text-lg sm:text-xl leading-snug">
-                  {question.question}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col justify-start space-y-3 pb-6">
-                {question.options.map((option, i) => (
+            className="h-full bg-gradient-to-r from-purple-600 to-indigo-500"
+            animate={{ width: `${(sceneIdx / scenes.length) * 100}%` }}
+            transition={{ duration: 0.4 }}
+          />
+        </div>
+
+        {/* Counter */}
+        <div className="shrink-0 flex justify-between items-center px-4 pt-3 pb-1">
+          <span className="pixel-font text-[7px] text-gray-500">
+            QUEST {sceneIdx + 1}/{scenes.length}
+          </span>
+          <span className="pixel-font text-[7px] text-gray-500">
+            {scene.npcName.toUpperCase()}
+          </span>
+        </div>
+
+        {/* Scene stage */}
+        <div className="flex-1 flex flex-col px-4 pb-4 gap-3 overflow-y-auto">
+
+          {/* Characters */}
+          <div className="flex items-end gap-4 mt-2 shrink-0">
+            {/* Knight */}
+            <motion.div
+              initial={{ x: -80, opacity: 0 }}
+              animate={knightIn ? { x: 0, opacity: 1 } : { x: -80, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 22 }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/sprites/knight.gif"
+                alt="Knight"
+                width={56}
+                height={56}
+                style={{ imageRendering: 'pixelated' }}
+              />
+            </motion.div>
+
+            {/* NPC */}
+            <div className="flex flex-col items-center gap-1">
+              <motion.div
+                key={`npc-${sceneIdx}`}
+                initial={{ scale: 0, rotate: -10 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.15 }}
+                className="text-4xl sm:text-5xl leading-none"
+              >
+                {scene.npc}
+              </motion.div>
+              <span className="pixel-font text-[6px] text-gray-400">{scene.npcName.toUpperCase()}</span>
+            </div>
+          </div>
+
+          {/* Dialogue box */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`dlg-${sceneIdx}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={skip}
+              className="shrink-0 relative border-2 border-purple-700/60 bg-gray-900/90 p-4 cursor-pointer select-none"
+            >
+              {/* Corner accents */}
+              <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-purple-500/50" />
+              <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-purple-500/50" />
+              <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-purple-500/50" />
+              <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-purple-500/50" />
+
+              <p className="pixel-font text-[7px] sm:text-[8px] text-gray-100 leading-6 min-h-[3.5rem]">
+                {displayed}
+                {!done && <span className="animate-pulse">▌</span>}
+              </p>
+              {done && (
+                <p className="pixel-font text-[6px] text-gray-500 text-right mt-1 animate-pulse">▼</p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Answer menu */}
+          <AnimatePresence>
+            {done && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-2 shrink-0"
+              >
+                {scene.options.map((opt, i) => (
                   <motion.button
                     key={i}
-                    whileHover={{ scale: 1.015 }}
-                    whileTap={{ scale: 0.975 }}
-                    onClick={() => handleAnswer(i)}
-                    className="w-full text-left px-4 py-4 rounded-xl
-                               bg-gray-800/50 hover:bg-purple-900/30
-                               border border-gray-700 hover:border-purple-600/50
-                               text-gray-200 hover:text-white
-                               transition-all duration-200
-                               min-h-[56px] text-sm sm:text-base"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    onClick={() => handleAnswer(opt.value)}
+                    disabled={selectedOption !== null}
+                    className={`
+                      w-full text-left px-4 py-3 border transition-all duration-150
+                      pixel-font text-[7px] leading-5 flex items-center gap-3
+                      ${selectedOption === opt.value
+                        ? 'bg-purple-700/60 border-purple-400 text-white'
+                        : selectedOption !== null
+                        ? 'bg-gray-900/30 border-gray-800/30 text-gray-600 cursor-not-allowed'
+                        : 'bg-gray-900/70 border-gray-700/50 text-gray-200 hover:bg-purple-900/40 hover:border-purple-600/60 hover:text-white'
+                      }
+                    `}
                   >
-                    <span className="text-purple-400 font-semibold mr-3">
-                      {String.fromCharCode(65 + i)}.
+                    <span className="shrink-0 w-3 text-purple-400">
+                      {selectedOption === opt.value ? '►' : '·'}
                     </span>
-                    {option}
+                    {opt.text}
                   </motion.button>
                 ))}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Back button */}
-        {currentQ > 0 && (
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            className="mt-4 text-gray-400 hover:text-white self-start min-h-[44px]"
-          >
-            ← Previous
-          </Button>
-        )}
+        </div>
       </div>
+    )
+  }
+
+  // ── RESULTS ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-[calc(100dvh-2rem)] flex flex-col items-center justify-center px-4 bg-gradient-to-br from-gray-950 via-purple-950/30 to-gray-950">
+
+      {resultLevel === 'ai' && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-sm w-full text-center space-y-6"
+        >
+          <motion.div
+            animate={{ y: [-6, 6, -6] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-6xl"
+          >
+            🏆
+          </motion.div>
+
+          <div className="relative border-2 border-green-600/50 bg-gray-900/80 p-5">
+            <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-green-500/50" />
+            <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-green-500/50" />
+            <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-green-500/50" />
+            <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-green-500/50" />
+            <h2 className="pixel-font text-green-400 text-[9px] leading-7 mb-2">QUEST COMPLETE!</h2>
+            <p className="pixel-font text-gray-300 text-[7px] leading-6">
+              Thy spirit is resilient, brave hero. The AI companion shall guide thee through these lands.
+            </p>
+          </div>
+
+          <div className="border border-green-700/40 bg-green-950/20 p-3">
+            <p className="pixel-font text-green-300 text-[7px] leading-6">✦ AI Chat is ready for thee</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => router.push('/student/chat')}
+              className="w-full rounded-none bg-green-700 hover:bg-green-600 border border-green-400/40 pixel-font text-[7px] tracking-widest py-5"
+            >
+              ▶ TALK TO AI COMPANION
+            </Button>
+            <button
+              onClick={() => router.push('/student/dashboard')}
+              className="w-full pixel-font text-[6px] text-gray-500 hover:text-gray-300 py-2 transition-colors"
+            >
+              RETURN TO VILLAGE
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {resultLevel === 'counsellor' && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-sm w-full text-center space-y-6"
+        >
+          <div className="text-5xl">🏥</div>
+
+          <div className="relative border-2 border-indigo-500/50 bg-gray-900/80 p-5">
+            <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-indigo-500/50" />
+            <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-indigo-500/50" />
+            <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-indigo-500/50" />
+            <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-indigo-500/50" />
+            <h2 className="pixel-font text-indigo-300 text-[9px] leading-7 mb-2">THE HEALERS AWAIT</h2>
+            <p className="pixel-font text-gray-300 text-[7px] leading-6">
+              Thy journey hath been difficult. The guild of healers — real counsellors — stand ready to aid thee.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {(['🧑‍⚕️', '👩‍⚕️', '🧙‍♀️'] as const).map((npc, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.15 }}
+                className="border border-indigo-700/40 bg-indigo-950/20 p-3 flex flex-col items-center gap-1"
+              >
+                <span className="text-2xl">{npc}</span>
+                <span className="pixel-font text-[5px] text-indigo-400">HEALER</span>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => router.push('/student/counsellors')}
+              className="w-full rounded-none bg-indigo-700 hover:bg-indigo-600 border border-indigo-400/40 pixel-font text-[7px] tracking-widest py-5"
+            >
+              ▶ MEET THE HEALERS
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/student/chat')}
+              className="w-full rounded-none border-gray-600 bg-transparent pixel-font text-[7px] tracking-widest py-5 text-gray-300"
+            >
+              TALK TO AI FIRST
+            </Button>
+            <button
+              onClick={() => router.push('/student/dashboard')}
+              className="w-full pixel-font text-[6px] text-gray-500 hover:text-gray-300 py-2 transition-colors"
+            >
+              RETURN TO VILLAGE
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {resultLevel === 'emergency' && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-sm w-full text-center space-y-6"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.12, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+            className="text-5xl"
+          >
+            🆘
+          </motion.div>
+
+          <div className="relative border-2 border-amber-500/60 bg-gray-900/80 p-5 emergency-pulse">
+            <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-amber-500/50" />
+            <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-amber-500/50" />
+            <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-amber-500/50" />
+            <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-amber-500/50" />
+            <h2 className="pixel-font text-amber-400 text-[9px] leading-7 mb-2">URGENT SUPPORT</h2>
+            <p className="pixel-font text-gray-300 text-[7px] leading-6">
+              Brave hero — thou art facing great darkness. Thou dost NOT have to face this alone. Help is here NOW.
+            </p>
+          </div>
+
+          <div className="border border-amber-600/50 bg-amber-950/20 p-4 space-y-1">
+            <p className="pixel-font text-amber-300 text-[8px]">CRISIS LIFELINE</p>
+            <p className="pixel-font text-white text-base font-bold tracking-widest">988</p>
+            <p className="pixel-font text-gray-400 text-[6px] leading-5">CALL OR TEXT · AVAILABLE 24/7</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={() => router.push('/student/counsellors')}
+              className="w-full rounded-none bg-amber-600 hover:bg-amber-500 border border-amber-400/40 pixel-font text-[7px] tracking-widest py-5"
+            >
+              ▶ CONNECT NOW
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/student/chat')}
+              className="w-full rounded-none border-gray-600 bg-transparent pixel-font text-[7px] tracking-widest py-5 text-gray-300"
+            >
+              TALK TO AI
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
     </div>
   )
 }

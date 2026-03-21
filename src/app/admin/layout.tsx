@@ -14,32 +14,46 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { createClient } from '@/lib/supabase'
 
 const navItems = [
-  { href: '/admin',              label: 'Overview',     icon: LayoutDashboard },
-  { href: '/admin/students',     label: 'Students',     icon: Users },
-  { href: '/admin/counsellors',  label: 'Counsellors',  icon: UserCheck },
-  { href: '/admin/mood-trends',  label: 'Trends',       icon: BarChart2 },
+  { href: '/admin',             label: 'Overview',    icon: LayoutDashboard },
+  { href: '/admin/students',    label: 'Students',    icon: Users },
+  { href: '/admin/counsellors', label: 'Counsellors', icon: UserCheck },
+  { href: '/admin/mood-trends', label: 'Trends',      icon: BarChart2 },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [userName, setUserName] = useState('Admin')
+  const supabase = createClient()
 
   useEffect(() => {
-    const role = localStorage.getItem('demo_role')
-    if (role !== 'admin') {
-      router.replace('/login')
-      return
-    }
-    const name = localStorage.getItem('demo_name') || 'Admin'
-    setUserName(name)
-  }, [router])
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
 
-  const handleLogout = () => {
-    localStorage.removeItem('demo_role')
-    localStorage.removeItem('demo_name')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'admin') { router.replace('/login'); return }
+      setUserName(profile.name)
+    }
+
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') router.replace('/login')
+    })
+    return () => subscription.unsubscribe()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     router.push('/login')
   }
 
@@ -114,7 +128,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Main content area ────────────────────────────────────── */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
 
-        {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 h-14
                            flex items-center justify-between px-4
                            bg-gray-950/90 border-b border-gray-800 backdrop-blur-xl">
@@ -137,10 +150,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               {children}
             </motion.div>
@@ -148,7 +161,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
       </div>
 
-      {/* ── Bottom nav (mobile only) ─────────────────────────────── */}
       <BottomNav items={navItems} accentColor="blue" />
     </div>
   )
