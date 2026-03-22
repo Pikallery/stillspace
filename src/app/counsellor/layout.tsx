@@ -32,6 +32,7 @@ export const dynamic = 'force-dynamic'
 export default function CounsellorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [userName, setUserName] = useState('Counsellor')
+  const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const supabase = useRef(createClient()).current
 
@@ -48,6 +49,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
 
       if (!profile || profile.role !== 'counsellor') { router.replace('/login'); return }
       setUserName(profile.name)
+      setUserId(session.user.id)
       setLoading(false)
     }
 
@@ -74,6 +76,7 @@ export default function CounsellorLayout({ children }: { children: React.ReactNo
         extras={extraItems}
         accentColor="indigo"
         userName={userName}
+        userId={userId}
         onLogout={handleLogout}
       />
 

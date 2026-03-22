@@ -38,6 +38,7 @@ export const dynamic = 'force-dynamic'
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [userName, setUserName] = useState('Student')
+  const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const supabase = useRef(createClient()).current
 
@@ -54,6 +55,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
       if (!profile || profile.role !== 'student') { router.replace('/login'); return }
       setUserName(profile.name)
+      setUserId(session.user.id)
       setLoading(false)
     }
 
@@ -80,6 +82,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         extras={extraItems}
         accentColor="purple"
         userName={userName}
+        userId={userId}
         onLogout={handleLogout}
       />
 

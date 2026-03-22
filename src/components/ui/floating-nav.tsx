@@ -8,6 +8,7 @@ import { MoreHorizontal, LogOut, Sun, Moon } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { LucideIcon } from 'lucide-react'
 import { useTheme } from '@/lib/theme-context'
+import { NotificationBell } from '@/components/ui/notification-bell'
 
 export interface NavItem {
   href: string
@@ -20,6 +21,7 @@ interface FloatingNavProps {
   extras?: NavItem[]
   accentColor?: string
   userName?: string
+  userId?: string
   onLogout?: () => void
 }
 
@@ -28,6 +30,7 @@ export function FloatingNav({
   extras,
   accentColor = 'purple',
   userName = '',
+  userId = '',
   onLogout,
 }: FloatingNavProps) {
   const pathname = usePathname()
@@ -131,6 +134,9 @@ export function FloatingNav({
             ? <Sun size={15} />
             : <Moon size={15} />}
         </button>
+
+        {/* Notifications */}
+        {userId && <NotificationBell userId={userId} />}
 
         {/* Divider */}
         <div className="w-px h-5 bg-gray-700/60 mx-0.5" />
