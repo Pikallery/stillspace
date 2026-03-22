@@ -1,4 +1,4 @@
-import { anthropic, STILLSPACE_SYSTEM_PROMPT } from '@/lib/anthropic'
+import { groq, STILLSPACE_SYSTEM_PROMPT } from '@/lib/anthropic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -37,14 +37,16 @@ export async function POST(req: NextRequest) {
   if (lastUser) logTopic(classifyTopic(lastUser.content))
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 400,
-      system: STILLSPACE_SYSTEM_PROMPT,
-      messages,
+      messages: [
+        { role: 'system', content: STILLSPACE_SYSTEM_PROMPT },
+        ...messages,
+      ],
     })
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const text = response.choices[0]?.message?.content ?? ''
     let emergency = false
     try { const p = JSON.parse(text); if (p.emergency) emergency = true } catch {}
     return NextResponse.json({ content: text, emergency })
