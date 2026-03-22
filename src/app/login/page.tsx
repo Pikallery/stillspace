@@ -1,10 +1,11 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { Eye, EyeOff, Shield } from 'lucide-react'
+
+// ── Demo accounts ─────────────────────────────────────────────────────────────
 
 const DEMO_ACCOUNTS = [
   { label: 'Student',    email: 'demo.student@stillspace.app',    password: 'Demo@1234' },
@@ -12,18 +13,34 @@ const DEMO_ACCOUNTS = [
   { label: 'Admin',      email: 'demo.admin@stillspace.app',      password: 'Demo@1234' },
 ]
 
+// ── Purple band position per hovered section ──────────────────────────────────
+
+type Section = 'none' | 'email' | 'password' | 'footer'
+
+const BAND: Record<Section, { height: string; transform: string }> = {
+  none:     { height: '3.5em', transform: 'translateY(0em)' },
+  email:    { height: '4.2em', transform: 'translateY(4em)' },
+  password: { height: '5.5em', transform: 'translateY(7.8em)' },
+  footer:   { height: '5.9em', transform: 'translateY(13.2em)' },
+}
+
+const PURPLE  = '#6041bf'
+const DPURPLE = '#24135a'
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function LoginPage() {
   const router   = useRouter()
   const supabase = createClient()
-  const cardRef  = useRef<HTMLDivElement>(null)
 
-  const [email, setEmail]               = useState('')
-  const [password, setPassword]         = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading]           = useState(false)
-  const [error, setError]               = useState('')
-  const [cursor, setCursor]             = useState({ x: -999, y: -999 })
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [hovered, setHovered]   = useState<Section>('none')
+  const [cardBig, setCardBig]   = useState(false)
 
+  // Auto-redirect if already logged in
   useEffect(() => {
     ;(async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -38,10 +55,13 @@ export default function LoginPage() {
   const doLogin = async (loginEmail: string, loginPassword: string) => {
     setLoading(true)
     setError('')
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword })
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: loginEmail, password: loginPassword,
+    })
     if (authError) { setError(authError.message); setLoading(false); return }
     if (data.session) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.session.user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('role')
+        .eq('id', data.session.user.id).single()
       if (profile?.role === 'student')         router.push('/student/dashboard')
       else if (profile?.role === 'counsellor') router.push('/counsellor/dashboard')
       else if (profile?.role === 'admin')      router.push('/admin')
@@ -50,156 +70,338 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email || !password) return
-    doLogin(email, password)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && email && password && !loading) doLogin(email, password)
   }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = cardRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-  }
-
-  const handleMouseLeave = () => setCursor({ x: -999, y: -999 })
+  const isE = hovered === 'email'
+  const isP = hovered === 'password'
+  const isF = hovered === 'footer'
+  const band = BAND[hovered]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-[#A8D1F0]/10 to-gray-950 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-10"
+      style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #c4b5fd 100%)' }}
+    >
 
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
-            style={{ background: 'linear-gradient(135deg, #A8D1F0, #5fa8d3)', boxShadow: '0 8px 24px rgba(168,209,240,0.25)' }}
-          >
-            <span className="text-2xl">🧠</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">StillSpace</h1>
-          <p className="text-gray-400 text-sm mt-1">Sign in to your account</p>
+      {/* ── Brand ────────────────────────────────────────────────────────── */}
+      <div className="text-center mb-7">
+        <p className="text-3xl font-extrabold" style={{ color: DPURPLE }}>StillSpace</p>
+        <p className="text-sm mt-1" style={{ color: PURPLE }}>Mental health support for students</p>
+      </div>
+
+      {/* ── Card ─────────────────────────────────────────────────────────── */}
+      <div
+        onMouseEnter={() => setCardBig(true)}
+        onMouseLeave={() => { setCardBig(false); setHovered('none') }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          backgroundColor: 'white',
+          width: cardBig ? '16em' : '15.5em',
+          height: cardBig ? '23em' : '22.5em',
+          border: `2px solid ${DPURPLE}`,
+          borderBottomLeftRadius: '1.5em',
+          borderTopRightRadius: '1.5em',
+          boxShadow: `-10px 0px 0px ${DPURPLE}, -10px 5px 5px rgba(0,0,0,0.2)`,
+          overflow: 'hidden',
+          position: 'relative',
+          transition: 'all 0.25s ease',
+          fontSize: '16px',
+        }}
+      >
+        {/* Purple sliding band */}
+        <div
+          style={{
+            width: '100%',
+            backgroundColor: PURPLE,
+            position: 'absolute',
+            top: 0,
+            zIndex: 1,
+            transition: 'all 0.5s ease',
+            boxShadow: `inset 5px 0px ${DPURPLE}`,
+            ...band,
+          }}
+        />
+
+        {/* White corner cutout (top-right notch) */}
+        <div
+          style={{
+            width: '3.5em',
+            height: '3.5em',
+            top: '2.5px',
+            right: '2.5px',
+            position: 'absolute',
+            zIndex: 2,
+            borderTopRightRadius: '1.25em',
+            boxShadow: '35px -35px 0px -1px white',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* ── LOGIN header ─────────────────────────────────────────────── */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            height: '3.5em',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            color: 'white',
+            pointerEvents: 'none',
+          }}
+        >
+          <p style={{ top: '0.35em', fontSize: '1.5em', fontWeight: 'bold', position: 'absolute', zIndex: 2 }}>
+            LOGIN
+          </p>
+          <p style={{
+            top: '62%',
+            left: '1em',
+            fontSize: '0.72em',
+            fontWeight: 'bold',
+            position: 'absolute',
+            zIndex: 1,
+            color: (isE || isP || isF) ? 'white' : PURPLE,
+            transition: 'color 0.3s ease',
+          }}>
+            Log in to your account
+          </p>
         </div>
 
-        {/* Card — cursor spotlight + left-border accent */}
+        {/* ── Email area ───────────────────────────────────────────────── */}
         <div
-          ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="relative bg-gray-900 rounded-2xl overflow-hidden border border-gray-800/60"
-          style={{ boxShadow: '-4px 0 0 #A8D1F0, 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(168,209,240,0.10)' }}
+          onMouseEnter={() => setHovered('email')}
+          onMouseLeave={() => setHovered('none')}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            paddingLeft: isE ? '5%' : '10%',
+            paddingRight: isE ? '5%' : '10%',
+            height: '5em',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexDirection: 'column',
+            marginTop: '1em',
+            transition: 'all 0.25s ease',
+          }}
         >
-          {/* Cursor-following spotlight overlay */}
-          <div
-            className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="EMAIL"
+            autoComplete="email"
             style={{
-              background: `radial-gradient(380px circle at ${cursor.x}px ${cursor.y}px, rgba(168,209,240,0.11) 0%, transparent 65%)`,
+              width: '100%',
+              border: `2px solid ${isE ? 'white' : PURPLE}`,
+              borderRadius: '0.5em',
+              height: isE ? '3em' : '2.5em',
+              paddingLeft: '1em',
+              fontSize: '0.9em',
+              fontWeight: 100,
+              transition: 'all 0.5s ease',
+              outline: 'none',
+              boxShadow: '0px 5px 5px -3px rgba(0,0,0,0.2)',
+              color: isE ? 'white' : PURPLE,
+              backgroundColor: isE ? PURPLE : 'white',
             }}
           />
-
-          {/* Demo accounts section */}
-          <div className="relative z-10 group px-6 pt-5 pb-4">
-            <div className="absolute inset-0 bg-[#A8D1F0]/0 group-hover:bg-[#A8D1F0]/[0.04] transition-colors duration-300 pointer-events-none rounded-t-2xl" />
-            <p className="relative text-gray-500 text-[10px] font-semibold uppercase tracking-widest mb-2.5">Quick demo access</p>
-            <div className="relative grid grid-cols-3 gap-2">
-              {DEMO_ACCOUNTS.map(acc => (
-                <button
-                  key={acc.label}
-                  onClick={() => doLogin(acc.email, acc.password)}
-                  disabled={loading}
-                  className="bg-gray-800 hover:bg-[#A8D1F0]/20 border border-gray-700 hover:border-[#A8D1F0]/40 text-gray-300 hover:text-white text-xs font-medium py-2 px-1 rounded-xl transition-all duration-200 disabled:opacity-50"
-                >
-                  {acc.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="relative z-10 flex items-center gap-3 px-6 py-1">
-            <div className="flex-1 h-px bg-gray-800" />
-            <span className="text-gray-700 text-[10px] uppercase tracking-wider">or</span>
-            <div className="flex-1 h-px bg-gray-800" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="relative z-10">
-            {/* Email section */}
-            <div className="group relative px-6 pt-4 pb-3">
-              <div className="absolute inset-0 bg-[#A8D1F0]/0 group-hover:bg-[#A8D1F0]/[0.04] transition-colors duration-300 pointer-events-none" />
-              <label className="relative block text-xs text-gray-400 font-medium mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@university.edu"
-                className="relative w-full bg-gray-800/70 border border-gray-700 focus:border-[#A8D1F0]/60 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none transition-colors"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            {/* Password section */}
-            <div className="group relative px-6 pt-2 pb-3">
-              <div className="absolute inset-0 bg-[#A8D1F0]/0 group-hover:bg-[#A8D1F0]/[0.04] transition-colors duration-300 pointer-events-none" />
-              <label className="relative block text-xs text-gray-400 font-medium mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-gray-800/70 border border-gray-700 focus:border-[#A8D1F0]/60 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none transition-colors pr-10"
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="relative px-6 pb-2">
-                <p className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>
-              </div>
-            )}
-
-            {/* Submit section */}
-            <div className="group relative px-6 pt-2 pb-5">
-              <div className="absolute inset-0 bg-[#A8D1F0]/0 group-hover:bg-[#A8D1F0]/[0.04] transition-colors duration-300 pointer-events-none" />
-              <button
-                type="submit"
-                disabled={loading || !email || !password}
-                className="relative w-full font-semibold py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: '#A8D1F0', color: '#1a2535', boxShadow: '0 4px 16px rgba(168,209,240,0.25)' }}
-              >
-                {loading ? 'Signing in…' : 'Sign In'}
-              </button>
-            </div>
-          </form>
-
-          {/* Footer */}
-          <div className="relative z-10 group border-t border-gray-800/60 px-6 py-3">
-            <div className="absolute inset-0 bg-[#A8D1F0]/0 group-hover:bg-[#A8D1F0]/[0.04] transition-colors duration-300 pointer-events-none rounded-b-2xl" />
-            <div className="relative flex items-center justify-center gap-1.5">
-              <Shield size={11} className="text-gray-600" />
-              <span className="text-[11px] text-gray-600">End-to-end encrypted · Secure login</span>
-            </div>
-          </div>
-
+          <style>{`.login-email::placeholder { color: ${isE ? 'white' : PURPLE}; font-weight: bold; }`}</style>
+          <style>{`#login-email-input::placeholder { color: ${isE ? 'white' : PURPLE}; font-weight: bold; }`}</style>
         </div>
 
-        <p className="text-center text-gray-600 text-sm mt-5">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="text-[#A8D1F0] hover:text-white font-medium transition-colors">
-            Create one
-          </Link>
-        </p>
+        {/* ── Password area ────────────────────────────────────────────── */}
+        <div
+          onMouseEnter={() => setHovered('password')}
+          onMouseLeave={() => setHovered('none')}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            paddingLeft: isP ? '5%' : '10%',
+            paddingRight: isP ? '5%' : '10%',
+            height: '6em',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-end',
+            flexDirection: 'column',
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="PASSWORD"
+            autoComplete="current-password"
+            style={{
+              width: '100%',
+              border: `2px solid ${isP ? 'white' : PURPLE}`,
+              borderRadius: '0.5em',
+              height: isP ? '3em' : '2.5em',
+              paddingLeft: '1em',
+              fontSize: '0.9em',
+              transition: 'all 0.25s ease',
+              outline: 'none',
+              boxShadow: '0px 5px 5px -3px rgba(0,0,0,0.2)',
+              color: isP ? 'white' : PURPLE,
+              backgroundColor: isP ? PURPLE : 'white',
+            }}
+          />
+          <span style={{
+            paddingTop: '0.5em',
+            fontSize: '0.8em',
+            fontWeight: 'bold',
+            color: isP ? 'white' : PURPLE,
+            transition: 'all 0.25s ease',
+            paddingRight: isP ? '0' : '0',
+            cursor: 'default',
+            userSelect: 'none',
+          }}>
+            Forgot password?
+          </span>
+        </div>
 
+        {/* ── Footer area ──────────────────────────────────────────────── */}
+        <div
+          onMouseEnter={() => setHovered('footer')}
+          onMouseLeave={() => setHovered('none')}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            paddingLeft: isF ? '5%' : '10%',
+            paddingRight: isF ? '5%' : '10%',
+            height: '7em',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexDirection: 'column',
+            color: PURPLE,
+            transition: 'all 0.25s ease',
+          }}
+        >
+          <button
+            onClick={() => { if (!loading && email && password) doLogin(email, password) }}
+            disabled={loading || !email || !password}
+            style={{
+              width: '100%',
+              border: `2px solid ${isF ? 'white' : PURPLE}`,
+              borderRadius: '0.5em',
+              height: isF ? '3em' : '2.5em',
+              fontSize: '0.95em',
+              transition: 'all 0.25s ease',
+              color: 'white',
+              fontWeight: 'bold',
+              backgroundColor: PURPLE,
+              boxShadow: '0px 5px 5px -3px rgba(0,0,0,0.2)',
+              cursor: (loading || !email || !password) ? 'not-allowed' : 'pointer',
+              opacity: (loading || !email || !password) ? 0.6 : 1,
+            }}
+          >
+            {loading ? 'Signing in…' : 'Log In'}
+          </button>
+
+          <div style={{ paddingTop: '0.5em', display: 'flex', alignItems: 'center', gap: '0.2em' }}>
+            <p style={{ fontSize: '0.8em', color: isF ? 'white' : PURPLE, transition: 'all 0.25s ease' }}>
+              Don&apos;t have an account?
+            </p>
+            <Link
+              href="/register"
+              style={{
+                fontSize: '0.8em',
+                fontWeight: 'bold',
+                color: isF ? 'white' : PURPLE,
+                transition: 'all 0.25s ease',
+                paddingLeft: '0.15em',
+              }}
+            >
+              Sign Up
+            </Link>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            position: 'absolute',
+            bottom: '0.4em',
+            left: '10%',
+            right: '10%',
+            zIndex: 10,
+          }}>
+            <p style={{
+              color: '#dc2626',
+              fontSize: '0.65em',
+              textAlign: 'center',
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              border: '1px solid #fca5a5',
+              padding: '0.3em 0.5em',
+              borderRadius: '0.4em',
+            }}>
+              {error}
+            </p>
+          </div>
+        )}
+
+        {/* Global placeholder color for this page */}
+        <style>{`
+          input::placeholder { color: ${PURPLE}; font-weight: bold; }
+        `}</style>
+      </div>
+
+      {/* ── Demo accounts ────────────────────────────────────────────────── */}
+      <div style={{ marginTop: '1.5em', width: '15.5em' }}>
+        <p style={{
+          color: PURPLE,
+          fontSize: '0.65em',
+          textAlign: 'center',
+          marginBottom: '0.6em',
+          textTransform: 'uppercase',
+          letterSpacing: '0.12em',
+          opacity: 0.7,
+        }}>
+          Quick demo access
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5em' }}>
+          {DEMO_ACCOUNTS.map(acc => (
+            <button
+              key={acc.label}
+              onClick={() => doLogin(acc.email, acc.password)}
+              disabled={loading}
+              style={{
+                backgroundColor: 'rgba(96,65,191,0.08)',
+                border: `1px solid rgba(96,65,191,0.3)`,
+                borderRadius: '0.5em',
+                padding: '0.45em 0.3em',
+                fontSize: '0.72em',
+                color: PURPLE,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                opacity: loading ? 0.5 : 1,
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = `rgba(96,65,191,0.18)`
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = PURPLE
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.backgroundColor = `rgba(96,65,191,0.08)`
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = `rgba(96,65,191,0.3)`
+              }}
+            >
+              {acc.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
