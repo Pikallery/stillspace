@@ -4,9 +4,10 @@ import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { MoreHorizontal, LogOut } from 'lucide-react'
+import { MoreHorizontal, LogOut, Sun, Moon } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { LucideIcon } from 'lucide-react'
+import { useTheme } from '@/lib/theme-context'
 
 export interface NavItem {
   href: string
@@ -32,6 +33,7 @@ export function FloatingNav({
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const { theme, toggle } = useTheme()
 
   const accent = {
     text: `text-${accentColor}-400`,
@@ -117,7 +119,21 @@ export function FloatingNav({
         )}
 
         {/* Divider */}
-        <div className="w-px h-5 bg-gray-700/60 mx-1" />
+        <div className="w-px h-5 bg-gray-700/60 mx-0.5" />
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 transition-all duration-200 shrink-0"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark'
+            ? <Sun size={15} />
+            : <Moon size={15} />}
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-gray-700/60 mx-0.5" />
 
         {/* Avatar / profile */}
         <Sheet open={profileOpen} onOpenChange={setProfileOpen}>

@@ -12,10 +12,13 @@ import {
   BarChart2,
   LogOut,
   Shield,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase'
+import { useTheme } from '@/lib/theme-context'
 
 const navItems = [
   { href: '/admin',             label: 'Overview',    icon: LayoutDashboard },
@@ -28,6 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const pathname = usePathname()
   const [userName, setUserName] = useState('Admin')
+  const { theme, toggle } = useTheme()
   const supabase = createClient()
 
   useEffect(() => {
@@ -114,7 +118,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-gray-800 space-y-1">
+          <Button
+            variant="ghost"
+            onClick={toggle}
+            className="w-full justify-start gap-3 text-gray-400 hover:text-white hover:bg-gray-800/50 min-h-[44px]"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <span className="text-sm">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </Button>
           <Button
             variant="ghost"
             onClick={handleLogout}
@@ -140,11 +152,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {currentItem?.label ?? 'Admin'}
             </span>
           </div>
-          <Avatar className="w-8 h-8">
-            <AvatarFallback className="bg-blue-700 text-white text-xs">
-              {userName.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggle}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors"
+            >
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="bg-blue-700 text-white text-xs">
+                {userName.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </header>
 
         <main className="flex-1 pb-20 md:pb-4">
