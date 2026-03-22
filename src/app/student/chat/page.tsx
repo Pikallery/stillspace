@@ -64,10 +64,11 @@ export default function ChatPage() {
     setLoading(true)
 
     try {
-      const apiMessages = [...messages, userMsg].map(m => ({
-        role: m.role,
-        content: m.content,
-      }))
+      // Filter out the hardcoded initial greeting (id '0') — Anthropic requires
+      // the first message to be role 'user', not 'assistant'
+      const apiMessages = [...messages, userMsg]
+        .filter(m => m.id !== '0')
+        .map(m => ({ role: m.role, content: m.content }))
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
