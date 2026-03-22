@@ -233,3 +233,7 @@ html[data-theme="light"] .shadow-\[0_8px_32px_rgba\(0\,0\,0\,0\.55\)\] {
 
 /* Sheet / bottom drawer */
 html[data-theme="light"] .bg-gray-950.border-t { background-color: #ffffff !important; }
+
+/* ── Login page ── */
+.login-input-default::placeholder { color: #6041bf; font-weight: bold; }
+.login-input-active::placeholder  { color: white;   font-weight: bold; }
