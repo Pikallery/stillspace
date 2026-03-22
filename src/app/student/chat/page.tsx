@@ -74,29 +74,28 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.emergency) setShowEmergencyModal(true)
-        setMessages(prev => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: data.content,
-            timestamp: new Date(),
-          },
-        ])
-      } else {
-        throw new Error('API error')
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error ?? `API error ${res.status}`)
       }
-    } catch {
+      if (data.emergency) setShowEmergencyModal(true)
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content:
-            "I'm here with you. Sometimes things can feel overwhelming, and it's okay to take it one step at a time. What's on your mind?",
+          content: data.content,
+          timestamp: new Date(),
+        },
+      ])
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error'
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `⚠️ Error: ${errMsg}`,
           timestamp: new Date(),
         },
       ])

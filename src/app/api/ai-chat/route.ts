@@ -48,10 +48,9 @@ export async function POST(req: NextRequest) {
     let emergency = false
     try { const p = JSON.parse(text); if (p.emergency) emergency = true } catch {}
     return NextResponse.json({ content: text, emergency })
-  } catch {
-    return NextResponse.json({
-      content: "I'm here with you. It sounds like things might be tough right now. Would you like to tell me more about how you're feeling?",
-      emergency: false,
-    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ai-chat] Anthropic error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
