@@ -1,4 +1,5 @@
-import { groq, STILLSPACE_SYSTEM_PROMPT } from '@/lib/anthropic'
+import { getGroq } from '@/lib/groq'
+import { STILLSPACE_SYSTEM_PROMPT } from '@/lib/anthropic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (lastUser) logTopic(classifyTopic(lastUser.content))
 
   try {
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 400,
       messages: [
