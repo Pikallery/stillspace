@@ -3,8 +3,10 @@ import { Inter, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme-context";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const pressStart2P = Press_Start_2P({ weight: '400', subsets: ['latin'], variable: '--font-pixel' });
+export const dynamic = "force-dynamic";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const pressStart2P = Press_Start_2P({ weight: "400", subsets: ["latin"], variable: "--font-pixel" });
 
 export const metadata: Metadata = {
   title: "StillSpace — Student Mental Health",
